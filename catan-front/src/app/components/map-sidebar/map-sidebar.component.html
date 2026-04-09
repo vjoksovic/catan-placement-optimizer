@@ -1,0 +1,156 @@
+<aside class="sidebar" aria-label="Placement analyzer">
+  <header class="sidebar__head">
+    <div class="sidebar__title-row">
+      <h2 class="sidebar__title">Placement analyzer</h2>
+      <span class="sidebar__chip">3 players</span>
+    </div>
+    <p class="sidebar__tagline">Overall score and field heat</p>
+
+    <div class="sidebar__actions">
+      <button
+        type="button"
+        class="sidebar__generate"
+        [disabled]="generateMapLoading"
+        (click)="generateMap.emit()"
+      >
+        {{ generateMapLoading ? 'Generating…' : 'Generate map' }}
+      </button>
+      @if (generateMapFailed) {
+        <p class="sidebar__generate-error" role="status">Could not reach server. Check the API is running.</p>
+      }
+    </div>
+
+    <div class="now-playing" aria-label="Current turn">
+      <div class="now-playing__current">
+        <span class="now-playing__kicker">Now</span>
+        <span
+          class="now-playing__piece"
+          [class.now-playing__piece--white]="nowPlayingCaption.swatch === 'white'"
+          [class.now-playing__piece--blue]="nowPlayingCaption.swatch === 'blue'"
+          [class.now-playing__piece--orange]="nowPlayingCaption.swatch === 'orange'"
+          aria-hidden="true"
+        ></span>
+        <span class="now-playing__name">
+          {{ nowPlayingCaption.colorLabel }} · {{ nowPlayingCaption.seat }} player
+        </span>
+      </div>
+      <div class="now-playing__toggle" role="group" aria-label="Choose active player">
+        @for (s of nowPlayingSeats; track s) {
+          <button
+            type="button"
+            class="now-playing__btn"
+            [class.now-playing__btn--active]="nowPlayingSeat === s"
+            (click)="nowPlayingSeatChange.emit(s)"
+          >
+            {{ s }}
+          </button>
+        }
+      </div>
+    </div>
+  </header>
+
+  <div class="sidebar__body" id="map-analysis-panel">
+    <section class="overall-hero" aria-label="Overall score by seat">
+      @for (p of playersByOverall; track p.seatLabel) {
+        <div
+          class="overall-tile"
+          [class.overall-tile--white]="p.seatLabel === '1st'"
+          [class.overall-tile--blue]="p.seatLabel === '2nd'"
+          [class.overall-tile--orange]="p.seatLabel === '3rd'"
+        >
+          <span class="overall-tile__seat">{{ p.seatLabel }}</span>
+          <span class="overall-tile__score">{{ p.overall }}</span>
+        </div>
+      }
+    </section>
+
+    <section class="panel panel--heatmap">
+      <div class="panel__row">
+        <span class="panel__label">Field heatmap</span>
+        <button
+          type="button"
+          class="heatmap-switch"
+          role="switch"
+          [attr.aria-checked]="heatmapOn"
+          (click)="heatmapToggle.emit()"
+        >
+          <span class="heatmap-switch__track">
+            <span class="heatmap-switch__thumb"></span>
+          </span>
+          <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
+        </button>
+      </div>
+      <p class="panel__hint">Heuristic value (worst → best)</p>
+      <div class="heatmap-legend" [class.heatmap-legend--muted]="!heatmapOn" aria-hidden="true">
+        <span class="heatmap-legend__cap">Worst</span>
+        <span class="heatmap-legend__bar"></span>
+        <span class="heatmap-legend__cap">Best</span>
+      </div>
+      <div class="heatmap-explain" aria-label="How to read heatmap colors">
+        <div class="heatmap-tier-list">
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--1"></i>Very low</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--2"></i>Low</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--3"></i>Medium</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--4"></i>High</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--5"></i>Best</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel panel--table" aria-label="Heuristic breakdown">
+      <h3 class="panel__table-title">Details</h3>
+      <div class="table-wrap">
+        <table class="score-table">
+          <thead>
+            <tr>
+              <th scope="col">Seat</th>
+              <th scope="col" class="score-table__num score-table__lead">Overall</th>
+              <th scope="col" class="score-table__num">Res</th>
+              <th scope="col" class="score-table__num">Poss</th>
+              <th scope="col" class="score-table__num">Scarc</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (p of playersByOverall; track p.seatLabel) {
+              <tr
+                [class.score-table__row--white]="p.seatLabel === '1st'"
+                [class.score-table__row--blue]="p.seatLabel === '2nd'"
+                [class.score-table__row--orange]="p.seatLabel === '3rd'"
+              >
+                <th scope="row">{{ p.seatLabel }}</th>
+                <td class="score-table__num score-table__lead">{{ p.overall }}</td>
+                <td class="score-table__num">{{ p.resources }}</td>
+                <td class="score-table__num">{{ p.possibility }}</td>
+                <td class="score-table__num">{{ p.scarcity }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel panel--resources" aria-label="Resources on this map">
+      <h3 class="panel__table-title">On this map</h3>
+      <ul class="resource-list">
+        @for (r of resourceOnMap; track r.resource) {
+          <li class="resource-list__item">
+            <span
+              class="resource-list__swatch"
+              [style.background-color]="r.tileColor"
+              aria-hidden="true"
+            ></span>
+            <div class="resource-list__body">
+              <span class="resource-list__name">{{ r.label }}</span>
+              <span class="resource-list__meta">
+                {{ r.hexes }} {{ r.hexes === 1 ? 'hex' : 'hexes' }}
+                <span class="resource-list__dot" aria-hidden="true">·</span>
+                {{ r.pips }} pips
+              </span>
+            </div>
+          </li>
+        }
+      </ul>
+    </section>
+  </div>
+</aside>
+

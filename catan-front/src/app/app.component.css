@@ -1,0 +1,21 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+:host > router-outlet {
+  flex: 0 0 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+:host > router-outlet + * {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: hidden;
+}

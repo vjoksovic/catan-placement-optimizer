@@ -1,0 +1,121 @@
+<div class="page">
+  <app-map-sidebar
+    [nowPlayingSeats]="facade.nowPlayingSeats"
+    [nowPlayingSeat]="facade.nowPlayingSeat()"
+    [nowPlayingCaption]="facade.nowPlayingCaption()"
+    [heatmapOn]="facade.heatmapOn()"
+    [playersByOverall]="facade.playersByOverall()"
+    [resourceOnMap]="facade.resourceOnMap()"
+    [generateMapLoading]="facade.generateMapLoading()"
+    [generateMapFailed]="facade.generateMapFailed()"
+    (nowPlayingSeatChange)="facade.setNowPlayingSeat($event)"
+    (heatmapToggle)="facade.toggleHeatmap()"
+    (generateMap)="facade.generateMap()"
+  />
+
+  <div class="map-stage">
+    <svg class="svg" [attr.viewBox]="facade.mapViewBox" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <linearGradient id="sea-fill" x1="0%" y1="100%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#293941" />
+          <stop offset="50%" stop-color="#344854" />
+          <stop offset="100%" stop-color="#232f37" />
+        </linearGradient>
+
+        <pattern id="hex-fill-lumber" width="14" height="14" patternUnits="userSpaceOnUse">
+          <rect width="14" height="14" fill="#3d5c4f" />
+        </pattern>
+        <pattern id="hex-fill-brick" width="14" height="14" patternUnits="userSpaceOnUse">
+          <rect width="14" height="14" fill="#8f675c" />
+        </pattern>
+        <pattern id="hex-fill-wool" width="14" height="14" patternUnits="userSpaceOnUse">
+          <rect width="14" height="14" fill="#5e7a62" />
+        </pattern>
+        <pattern id="hex-fill-grain" width="14" height="14" patternUnits="userSpaceOnUse">
+          <rect width="14" height="14" fill="#9c8f52" />
+        </pattern>
+        <pattern id="hex-fill-ore" width="14" height="14" patternUnits="userSpaceOnUse">
+          <rect width="14" height="14" fill="#6f767e" />
+        </pattern>
+        <pattern id="hex-fill-desert" width="14" height="14" patternUnits="userSpaceOnUse">
+          <rect width="14" height="14" fill="#a68f6b" />
+        </pattern>
+      </defs>
+
+      <rect class="sea" x="-2000" y="-2000" width="4000" height="4000" fill="url(#sea-fill)" />
+
+      @for (h of facade.hexViews(); track h.id) {
+        <g
+          class="hex-cell"
+          [attr.transform]="'translate(' + h.x + ',' + h.y + ')'"
+          (click)="facade.onHexClick(h.id)"
+        >
+          <polygon
+            class="hex"
+            [class.hex--lit]="h.lit"
+            [class.hex--selected]="h.selected"
+            [attr.points]="facade.hexPolygonPoints"
+            [attr.fill]="h.fill"
+          />
+          @for (e of h.edges; track e.num) {
+            <line
+              class="hex-edge-guide"
+              [attr.x1]="e.x1"
+              [attr.y1]="e.y1"
+              [attr.x2]="e.x2"
+              [attr.y2]="e.y2"
+              (click)="facade.onEdgeClick(h.fieldNumber, e.num, $event)"
+            />
+          }
+          @for (s of h.spots; track s.num) {
+            <circle
+              class="hex-spot-guide"
+              [attr.cx]="s.x"
+              [attr.cy]="s.y"
+              r="4"
+              (click)="facade.onSpotClick(h.fieldNumber, s.num, $event)"
+            />
+          }
+          @if (facade.heatmapOn()) {
+            <polygon class="hex-heat" [attr.points]="facade.hexPolygonPoints" [attr.fill]="h.heatFill" />
+          }
+          @if (h.productionNumber !== null) {
+            <g class="token">
+              <circle class="token-chip" r="24" cx="0" cy="0" />
+              <text class="token-num" [class.token-num--hot]="h.tokenHot" x="0" y="0" text-anchor="middle" dominant-baseline="middle">
+                {{ h.productionNumber }}
+              </text>
+            </g>
+          }
+        </g>
+      }
+
+      <g class="player-pieces">
+        @for (r of facade.playerPieces().roads; track r.v1 + '-' + r.v2) {
+          <line
+            class="player-road"
+            [class.player-road--0]="r.seat === 0"
+            [class.player-road--1]="r.seat === 1"
+            [class.player-road--2]="r.seat === 2"
+            [attr.x1]="r.x1"
+            [attr.y1]="r.y1"
+            [attr.x2]="r.x2"
+            [attr.y2]="r.y2"
+          />
+        }
+        @for (s of facade.playerPieces().settlements; track s.vertexId) {
+          <g
+            class="player-settlement"
+            [class.player-settlement--0]="s.seat === 0"
+            [class.player-settlement--1]="s.seat === 1"
+            [class.player-settlement--2]="s.seat === 2"
+            [attr.transform]="'translate(' + s.x + ',' + s.y + ')'"
+          >
+            <path class="player-settlement__house" d="M 0,-12 L 11,3 L 7,3 L 7,12 L -7,12 L -7,3 L -11,3 Z" />
+          </g>
+        }
+      </g>
+    </svg>
+  </div>
+</div>
+

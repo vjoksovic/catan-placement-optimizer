@@ -1,0 +1,99 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# build output
+/dist
+/build
+
+# angular
+/.angular/cache
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# misc
+.DS_Store
+Thumbs.db
+
+# environment files (oprez ako koristis)
+src/environments/*.local.ts
+
+# coverage
+/coverage
+
+# compiled class files
+*.class
+
+# logs
+*.log
+
+# Spring Boot
+*.jar
+*.war
+*.ear
+target/
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# application config (ako sadrzi secrets)
+application-local.properties
+application-local.yml
+
+# generated files
+/out/
+
+# test output
+/test-output/
+
+# ======================
+# Angular
+# ======================
+/frontend/node_modules
+/frontend/dist
+/frontend/.angular/cache
+/frontend/coverage
+
+# ======================
+# Spring Boot
+# ======================
+/backend/target
+/backend/*.log
+
+# ======================
+# Global
+# ======================
+.env
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+*.swp
