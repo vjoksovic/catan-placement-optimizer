@@ -1,6 +1,4 @@
 import {
-  DEFAULT_HEX_EDGES,
-  DEFAULT_HEX_SPOTS,
   HEX_CIRCUMRADIUS,
   HEX_IDS,
   HEX_NEIGHBOURS,
@@ -75,17 +73,22 @@ export function getMapViewBoxString(padding = 120): string {
 }
 
 export function createStaticCatanMap(): CatanMap {
+  const graph = buildBoardGraph();
   const hexes: HexField[] = HEX_IDS.map((id) => ({
     id,
     fieldNumber: id,
     resource: STATIC_RESOURCE_BY_HEX[id] ?? RESOURCE.Desert,
     neighbourHexIds: [...(HEX_NEIGHBOURS[id] ?? [])],
     productionNumber: STATIC_PRODUCTION_BY_HEX[id] ?? null,
-    spots: DEFAULT_HEX_SPOTS,
-    edges: DEFAULT_HEX_EDGES,
-    unavailableSpots: [],
+    productionValue: productionPips(STATIC_PRODUCTION_BY_HEX[id] ?? null),
+    vertexIds: [...(graph.hexCornerVertexIds[id] ?? [])],
   }));
-  return { hexes, neighbours: HEX_NEIGHBOURS };
+  const vertices = graph.vertexPositions.map((_, id) => ({
+    id,
+    fields: [] as number[],
+    neighbours: [...(graph.adjacency.get(id) ?? [])],
+  }));
+  return { hexes, neighbours: HEX_NEIGHBOURS, vertices };
 }
 
 export function productionPips(productionNumber: number | null): number {
@@ -113,22 +116,21 @@ export function heatOverlayRgbaNormalized(t: number): string {
 }
 
 /**
- * Discrete heat tiers by production probability:
- * 2/12 (worst), 3/11, 4/10 (mid), 5/9 (good), 6/8 (best).
+ * Discrete heat tiers (1 = worst … 5 = best). Deep sea slate → blue → teal → jade; chroma and lightness ramp up.
  */
 export function heatOverlayRgbaByPips(pips: number): string {
   switch (pips) {
-    case 5: // 6 / 8 (best)
-      return 'rgb(92 142 94)';
-    case 4: // 5 / 9
-      return 'rgb(86 122 90)';
-    case 3: // 4 / 10
-      return 'rgb(82 106 87)';
-    case 2: // 3 / 11
-      return 'rgb(78 90 82)';
-    case 1: // 2 / 12
-    default: // desert / no token -> map to lowest legend tier
-      return 'rgb(72 74 76)';
+    case 5:
+      return 'rgb(74 152 124)';
+    case 4:
+      return 'rgb(54 122 102)';
+    case 3:
+      return 'rgb(44 98 108)';
+    case 2:
+      return 'rgb(36 70 96)';
+    case 1:
+    default:
+      return 'rgb(26 38 48)';
   }
 }
 
@@ -152,18 +154,18 @@ export function resourceRowsOnMap(map: CatanMap): ResourceOnMapRow[] {
     [RESOURCE.Grain]: 'Grain', [RESOURCE.Ore]: 'Ore', [RESOURCE.Desert]: 'Desert',
   };
   const hexes = new Map<Resource, number>();
-  const pips = new Map<Resource, number>();
-  for (const r of order) { hexes.set(r, 0); pips.set(r, 0); }
+  const production = new Map<Resource, number>();
+  for (const r of order) { hexes.set(r, 0); production.set(r, 0); }
   for (const h of map.hexes) {
     if (h.resource === RESOURCE.Desert) continue;
     hexes.set(h.resource, (hexes.get(h.resource) ?? 0) + 1);
-    pips.set(h.resource, (pips.get(h.resource) ?? 0) + productionPips(h.productionNumber));
+    production.set(h.resource, (production.get(h.resource) ?? 0) + (h.productionValue ?? 0));
   }
   return order.map((resource) => ({
     resource,
     label: labels[resource],
     hexes: hexes.get(resource) ?? 0,
-    pips: pips.get(resource) ?? 0,
+    production: production.get(resource) ?? 0,
     tileColor: RESOURCE_TILE_COLOR[resource],
   }));
 }
@@ -250,6 +252,53 @@ export function analyzePlacement(map: CatanMap): PlacementAnalysis {
     overallHeat01ByHex[id] = v <= 0 ? 0 : span < 1e-9 ? 0.5 : (v - minO) / span;
   }
   return { players, overallHeat01ByHex };
+}
+
+/**
+ * Sum of adjacent hex production pips per board vertex (settlement intersection),
+ * then min–max normalized and mapped to the same 5-tier colors as field pips.
+ */
+export function vertexHeatFillByVertexId(graph: BoardGraph, map: CatanMap): ReadonlyMap<number, string> {
+  const byId = new Map(map.hexes.map((h) => [h.id, h]));
+  const totals = new Map<number, number>();
+
+  for (const hid of HEX_IDS) {
+    const h = byId.get(hid);
+    const corners = h?.vertexIds?.length ? h.vertexIds : graph.hexCornerVertexIds[hid];
+    if (!corners) continue;
+    const pip = productionPips(h?.productionNumber ?? null);
+    for (let k = 0; k < 6; k++) {
+      const vid = corners[k]!;
+      totals.set(vid, (totals.get(vid) ?? 0) + pip);
+    }
+  }
+
+  let minT = Infinity;
+  let maxT = -Infinity;
+  for (const t of totals.values()) {
+    if (t <= 0) continue;
+    minT = Math.min(minT, t);
+    maxT = Math.max(maxT, t);
+  }
+  if (minT === Infinity) minT = 0;
+  if (maxT === -Infinity) maxT = 0;
+  const span = maxT - minT;
+
+  const fills = new Map<number, string>();
+  for (const [vid, t] of totals) {
+    let tier: number;
+    if (t <= 0) {
+      tier = 1;
+    } else if (span < 1e-9) {
+      tier = 3;
+    } else {
+      const norm = (t - minT) / span;
+      const idx = Math.min(4, Math.floor(norm * 5));
+      tier = idx + 1;
+    }
+    fills.set(vid, heatOverlayRgbaByPips(tier));
+  }
+  return fills;
 }
 
 export function buildBoardGraph(): BoardGraph {

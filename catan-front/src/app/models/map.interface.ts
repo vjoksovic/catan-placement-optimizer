@@ -9,21 +9,27 @@ export interface HexField {
   readonly resource: Resource;
   readonly neighbourHexIds: readonly number[];
   readonly productionNumber: number | null;
-  readonly spots: readonly number[];
-  readonly edges: readonly number[];
-  readonly unavailableSpots: readonly number[];
+  readonly productionValue: number;
+  readonly vertexIds: readonly number[];
+}
+
+export interface BoardVertexData {
+  readonly id: number;
+  readonly fields: readonly number[];
+  readonly neighbours: readonly number[];
 }
 
 export interface CatanMap {
   readonly hexes: readonly HexField[];
   readonly neighbours: Readonly<Record<number, readonly number[]>>;
+  readonly vertices: readonly BoardVertexData[];
 }
 
 export interface ResourceOnMapRow {
   readonly resource: Resource;
   readonly label: string;
   readonly hexes: number;
-  readonly pips: number;
+  readonly production: number;
   readonly tileColor: string;
 }
 

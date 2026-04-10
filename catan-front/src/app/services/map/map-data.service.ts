@@ -15,8 +15,11 @@ import { MapApiService } from './map-api.service';
 export class MapDataService {
   private static readonly GENERATED_MAP_STORAGE_KEY = 'catan.generated.map';
   private readonly mapApi = inject(MapApiService);
+  private readonly hasGeneratedMap = signal(false);
   private readonly mapState = signal<CatanMap>(this.loadInitialMap());
   readonly map = this.mapState.asReadonly();
+  /** True after a successful API generate or when a saved generated map was restored. */
+  readonly mapGenerated = this.hasGeneratedMap.asReadonly();
   readonly generateMapLoading = signal(false);
   readonly generateMapFailed = signal(false);
   readonly playerPieces = computed(() => this.createPlayerPieces(this.mapState()));
@@ -28,6 +31,7 @@ export class MapDataService {
       const dto = await firstValueFrom(this.mapApi.generateMap());
       const generatedMap = boardDtoToCatanMap(dto);
       this.mapState.set(generatedMap);
+      this.hasGeneratedMap.set(true);
       this.clearSavedGeneratedMap();
       this.saveGeneratedMap(generatedMap);
     } catch {
@@ -39,7 +43,12 @@ export class MapDataService {
 
   private loadInitialMap(): CatanMap {
     const savedMap = this.loadSavedGeneratedMap();
-    return savedMap ?? createStaticCatanMap();
+    if (savedMap) {
+      this.hasGeneratedMap.set(true);
+      return savedMap;
+    }
+    this.hasGeneratedMap.set(false);
+    return createStaticCatanMap();
   }
 
   private saveGeneratedMap(map: CatanMap): void {

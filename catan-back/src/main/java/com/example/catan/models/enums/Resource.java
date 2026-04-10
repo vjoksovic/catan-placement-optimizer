@@ -1,4 +1,4 @@
-package com.example.catan.models;
+package com.example.catan.models.enums;
 
 public enum Resource {
   LUMBER,
@@ -8,3 +8,4 @@ public enum Resource {
   ORE,
   DESERT,
 }
+

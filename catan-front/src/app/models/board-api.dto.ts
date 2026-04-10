@@ -7,11 +7,17 @@ export interface GameBoardFieldDto {
   fieldNumber: number;
   resource: string | null;
   neighbours: number[];
-  spots: number[];
-  edges: number[];
-  unavailableSpots: number[];
+  vertices: number[];
+  productionValue: number;
+}
+
+export interface GameBoardVertexDto {
+  id: number;
+  fields: number[];
+  neighbours: number[];
 }
 
 export interface GameBoardDto {
   fields: GameBoardFieldDto[];
+  vertices: GameBoardVertexDto[];
 }

@@ -1,5 +1,5 @@
-import type { CatanMap, HexField, Resource } from './map.interface';
-import type { GameBoardDto, GameBoardFieldDto } from './board-api.dto';
+import type { BoardVertexData, CatanMap, HexField, Resource } from './map.interface';
+import type { GameBoardDto, GameBoardFieldDto, GameBoardVertexDto } from './board-api.dto';
 import { RESOURCE } from './map.const';
 
 const API_TO_UI_RESOURCE: Readonly<Record<string, Resource>> = {
@@ -22,15 +22,27 @@ function mapField(f: GameBoardFieldDto): HexField {
   const resource = asResource(f.resource);
   const productionNumber =
     resource === RESOURCE.Desert ? null : f.fieldNumber > 0 ? f.fieldNumber : null;
+  const productionValue = typeof f.productionValue === 'number'
+    ? f.productionValue
+    : productionNumber === null
+      ? 0
+      : ({ 2: 1, 12: 1, 3: 2, 11: 2, 4: 3, 10: 3, 5: 4, 9: 4, 6: 5, 8: 5 }[productionNumber] ?? 0);
   return {
     id: f.id,
     fieldNumber: f.fieldNumber,
     resource,
     neighbourHexIds: [...f.neighbours],
     productionNumber,
-    spots: f.spots.map((n) => n + 1),
-    edges: f.edges.map((n) => n + 1),
-    unavailableSpots: f.unavailableSpots.map((n) => n + 1),
+    productionValue,
+    vertexIds: [...f.vertices],
+  };
+}
+
+function mapVertex(v: GameBoardVertexDto): BoardVertexData {
+  return {
+    id: v.id,
+    fields: [...v.fields],
+    neighbours: [...v.neighbours],
   };
 }
 
@@ -41,5 +53,6 @@ export function boardDtoToCatanMap(dto: GameBoardDto): CatanMap {
   for (const h of hexes) {
     neighbours[h.id] = h.neighbourHexIds;
   }
-  return { hexes, neighbours };
+  const vertices = (dto.vertices ?? []).map((v) => mapVertex(v));
+  return { hexes, neighbours, vertices };
 }

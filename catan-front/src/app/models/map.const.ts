@@ -92,3 +92,6 @@ export const HEX_RESOURCE_PATTERN_FILL: Record<Resource, string> = {
   [RESOURCE.Desert]: 'url(#hex-fill-desert)',
 };
 
+/** Flat fill when vertex heatmap is on so tile resources do not compete with vertex colors. */
+export const HEX_FILL_HEATMAP_NEUTRAL = '#3a434a';
+

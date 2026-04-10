@@ -1,13 +1,13 @@
-package com.example.catan.Utils;
+package com.example.catan.utils;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
-import com.example.catan.models.Resource;
+import com.example.catan.models.enums.Resource;
 
-public class MapUtil {
+public class MapGeneratorUtil {
   
   public static HashMap<Integer, List<Integer>> forbiddenNumbers() {
     HashMap<Integer, List<Integer>> forbiddenNumbers = new HashMap<>();

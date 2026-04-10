@@ -1,10 +1,8 @@
 package com.example.catan.models;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-import lombok.Getter;
+import com.example.catan.models.enums.Resource;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -14,25 +12,12 @@ public class Field {
   private int fieldNumber;
   private Resource resource;
   private List<Integer> neighbours;
-  private List<Integer> spots;
-  private List<Integer> edges;
-  private List<Integer> unavailableSpots;
+  private List<Integer> vertices;
+  private int productionValue;
 
-  public Field(int id, int fieldNumber, Resource resource, List<Integer> neighbours) {
-    this.id = id;
-    this.fieldNumber = fieldNumber;
-    this.resource = resource;
-    this.neighbours = neighbours;
-    this.spots = Arrays.asList(0, 1, 2, 3, 4, 5);
-    this.edges = Arrays.asList(0, 1, 2, 3, 4, 5);
-    this.unavailableSpots = new ArrayList<>();
-  }
-
-  public Field(int id, List<Integer> neighbours) {
+  public Field(int id, List<Integer> neighbours, List<Integer> vertices) {
     this.id = id;
     this.neighbours = neighbours;
-    this.spots = Arrays.asList(0, 1, 2, 3, 4, 5);
-    this.edges = Arrays.asList(0, 1, 2, 3, 4, 5);
-    this.unavailableSpots = new ArrayList<>();
+    this.vertices = vertices;
   }
 }

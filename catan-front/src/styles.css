@@ -64,11 +64,6 @@ app-map-graph-view .hex-edge-guide {
   stroke-width: 2.1;
 }
 
-app-map-graph-view .hex-spot-guide {
-  fill: rgba(228, 236, 241, 0.26);
-  stroke: rgba(16, 24, 30, 0.42);
-}
-
 app-map-graph-view .hex--lit {
   filter: brightness(1.08) saturate(1.02);
 }
@@ -77,13 +72,41 @@ app-map-graph-view .hex--selected {
   filter: brightness(1.1) saturate(1.03);
 }
 
+app-map-graph-view .hex--vertex-linked {
+  filter: brightness(1.17) saturate(1.12);
+}
+
 app-map-graph-view .token-chip {
   fill: #e2e6ea;
 }
 
-app-map-graph-view .hex-heat {
-  mix-blend-mode: normal;
-  opacity: 1;
+app-map-graph-view .vertex-heat-dot {
+  stroke: rgba(12, 18, 24, 0.45);
+  stroke-width: 1.5;
+  cursor: pointer;
+  transition: stroke-width 0.12s ease, stroke 0.12s ease, filter 0.12s ease;
+}
+
+app-map-graph-view .vertex-heat-dot--ring {
+  stroke: rgba(233, 242, 247, 0.78);
+  stroke-width: 2.4;
+}
+
+app-map-graph-view .vertex-heat-dot--selected {
+  stroke: #ffffff;
+  stroke-width: 3;
+  filter: brightness(1.12);
+}
+
+app-map-graph-view .vertex-index-label {
+  fill: #f3f8fb;
+  stroke: rgba(8, 14, 20, 0.95);
+  stroke-width: 1.8;
+  paint-order: stroke fill;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  pointer-events: none;
 }
 
 app-map-graph-view .token-num {
@@ -94,6 +117,17 @@ app-map-graph-view .token-num {
 
 app-map-graph-view .token-num--hot {
   fill: #a84845;
+}
+
+app-map-graph-view .field-index-label {
+  fill: #e7edf1;
+  stroke: rgba(8, 14, 20, 0.92);
+  stroke-width: 1.4;
+  paint-order: stroke fill;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  pointer-events: none;
 }
 
 app-map-graph-view .player-road {
@@ -177,9 +211,10 @@ app-map-sidebar .sidebar__tagline { margin: 0.24rem 0 0; font-size: 0.68rem; col
 app-map-sidebar .sidebar__actions {
   margin-top: 0.62rem;
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.34rem;
 }
-app-map-sidebar .sidebar__generate {
+app-map-sidebar .sidebar__action-btn {
   width: 100%;
   border: 1px solid rgba(112, 138, 152, 0.48);
   background: rgba(48, 73, 88, 0.45);
@@ -190,11 +225,16 @@ app-map-sidebar .sidebar__generate {
   font-weight: 600;
   cursor: pointer;
 }
-app-map-sidebar .sidebar__generate:disabled {
+app-map-sidebar .sidebar__start-game {
+  border-color: rgba(118, 146, 116, 0.48);
+  background: rgba(55, 84, 63, 0.46);
+}
+app-map-sidebar .sidebar__action-btn:disabled {
   opacity: 0.65;
   cursor: wait;
 }
 app-map-sidebar .sidebar__generate-error {
+  grid-column: 1 / -1;
   margin: 0;
   font-size: 0.62rem;
   color: #ddb0ac;
@@ -272,18 +312,18 @@ app-map-sidebar .heatmap-legend__bar {
   border-radius: 999px;
   background: linear-gradient(
     90deg,
-    rgb(72 74 76) 0%,
-    rgb(72 74 76) 20%,
-    rgb(78 90 82) 20%,
-    rgb(78 90 82) 40%,
-    rgb(82 106 87) 40%,
-    rgb(82 106 87) 60%,
-    rgb(86 122 90) 60%,
-    rgb(86 122 90) 80%,
-    rgb(92 142 94) 80%,
-    rgb(92 142 94) 100%
+    rgb(26 38 48) 0%,
+    rgb(26 38 48) 20%,
+    rgb(36 70 96) 20%,
+    rgb(36 70 96) 40%,
+    rgb(44 98 108) 40%,
+    rgb(44 98 108) 60%,
+    rgb(54 122 102) 60%,
+    rgb(54 122 102) 80%,
+    rgb(74 152 124) 80%,
+    rgb(74 152 124) 100%
   );
-  opacity: 0.88;
+  opacity: 0.95;
 }
 app-map-sidebar .heatmap-tier-list {
   display: grid;
@@ -313,11 +353,11 @@ app-map-sidebar .heatmap-tier__swatch {
   border-radius: 2px;
   display: inline-block;
 }
-app-map-sidebar .heatmap-tier__swatch--1 { background: rgb(72 74 76); }
-app-map-sidebar .heatmap-tier__swatch--2 { background: rgb(78 90 82); }
-app-map-sidebar .heatmap-tier__swatch--3 { background: rgb(82 106 87); }
-app-map-sidebar .heatmap-tier__swatch--4 { background: rgb(86 122 90); }
-app-map-sidebar .heatmap-tier__swatch--5 { background: rgb(92 142 94); }
+app-map-sidebar .heatmap-tier__swatch--1 { background: rgb(26 38 48); }
+app-map-sidebar .heatmap-tier__swatch--2 { background: rgb(36 70 96); }
+app-map-sidebar .heatmap-tier__swatch--3 { background: rgb(44 98 108); }
+app-map-sidebar .heatmap-tier__swatch--4 { background: rgb(54 122 102); }
+app-map-sidebar .heatmap-tier__swatch--5 { background: rgb(74 152 124); }
 
 app-map-sidebar .table-wrap { overflow-x: auto; }
 app-map-sidebar .score-table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }

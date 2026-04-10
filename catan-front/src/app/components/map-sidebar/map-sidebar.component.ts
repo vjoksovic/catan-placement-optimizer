@@ -19,9 +19,11 @@ export class MapSidebarComponent {
   @Input({ required: true }) resourceOnMap!: readonly ResourceOnMapRow[];
   @Input({ required: true }) generateMapLoading!: boolean;
   @Input({ required: true }) generateMapFailed!: boolean;
+  @Input({ required: true }) mapGenerated!: boolean;
 
   @Output() readonly nowPlayingSeatChange = new EventEmitter<NowPlayingSeat>();
   @Output() readonly heatmapToggle = new EventEmitter<void>();
   @Output() readonly generateMap = new EventEmitter<void>();
+  @Output() readonly startGame = new EventEmitter<void>();
 }
 

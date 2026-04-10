@@ -8,9 +8,11 @@
     [resourceOnMap]="facade.resourceOnMap()"
     [generateMapLoading]="facade.generateMapLoading()"
     [generateMapFailed]="facade.generateMapFailed()"
+    [mapGenerated]="facade.mapGenerated()"
     (nowPlayingSeatChange)="facade.setNowPlayingSeat($event)"
     (heatmapToggle)="facade.toggleHeatmap()"
     (generateMap)="facade.generateMap()"
+    (startGame)="facade.startGame()"
   />
 
   <div class="map-stage">
@@ -54,6 +56,7 @@
             class="hex"
             [class.hex--lit]="h.lit"
             [class.hex--selected]="h.selected"
+            [class.hex--vertex-linked]="h.vertexLinked"
             [attr.points]="facade.hexPolygonPoints"
             [attr.fill]="h.fill"
           />
@@ -67,18 +70,6 @@
               (click)="facade.onEdgeClick(h.fieldNumber, e.num, $event)"
             />
           }
-          @for (s of h.spots; track s.num) {
-            <circle
-              class="hex-spot-guide"
-              [attr.cx]="s.x"
-              [attr.cy]="s.y"
-              r="4"
-              (click)="facade.onSpotClick(h.fieldNumber, s.num, $event)"
-            />
-          }
-          @if (facade.heatmapOn()) {
-            <polygon class="hex-heat" [attr.points]="facade.hexPolygonPoints" [attr.fill]="h.heatFill" />
-          }
           @if (h.productionNumber !== null) {
             <g class="token">
               <circle class="token-chip" r="24" cx="0" cy="0" />
@@ -86,6 +77,28 @@
                 {{ h.productionNumber }}
               </text>
             </g>
+          }
+          @if (facade.heatmapOn()) {
+            <text class="field-index-label" x="0" y="-52" text-anchor="middle" dominant-baseline="middle">
+              {{ h.id }}
+            </text>
+          }
+        </g>
+      }
+
+      @if (facade.heatmapOn()) {
+        <g class="vertex-heat-layer">
+          @for (v of facade.heatmapVertexMarkers(); track v.id) {
+            <circle
+              class="vertex-heat-dot"
+              [class.vertex-heat-dot--ring]="v.ring"
+              [class.vertex-heat-dot--selected]="v.selected"
+              [attr.cx]="v.x"
+              [attr.cy]="v.y"
+              r="18"
+              [attr.fill]="v.fill"
+              (click)="facade.onVertexClick(v.id, $event)"
+            />
           }
         </g>
       }
@@ -115,6 +128,21 @@
           </g>
         }
       </g>
+      @if (facade.heatmapOn()) {
+        <g class="vertex-index-layer" pointer-events="none">
+          @for (v of facade.heatmapVertexMarkers(); track v.id) {
+            <text
+              class="vertex-index-label"
+              [attr.x]="v.x"
+              [attr.y]="v.y"
+              text-anchor="middle"
+              dominant-baseline="middle"
+            >
+              {{ v.id }}
+            </text>
+          }
+        </g>
+      }
     </svg>
   </div>
 </div>

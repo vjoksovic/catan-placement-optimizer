@@ -9,11 +9,19 @@
     <div class="sidebar__actions">
       <button
         type="button"
-        class="sidebar__generate"
+        class="sidebar__action-btn sidebar__generate"
         [disabled]="generateMapLoading"
         (click)="generateMap.emit()"
       >
         {{ generateMapLoading ? 'Generating…' : 'Generate map' }}
+      </button>
+      <button
+        type="button"
+        class="sidebar__action-btn sidebar__start-game"
+        [disabled]="generateMapLoading || !mapGenerated"
+        (click)="startGame.emit()"
+      >
+        Start game
       </button>
       @if (generateMapFailed) {
         <p class="sidebar__generate-error" role="status">Could not reach server. Check the API is running.</p>
@@ -66,7 +74,7 @@
 
     <section class="panel panel--heatmap">
       <div class="panel__row">
-        <span class="panel__label">Field heatmap</span>
+        <span class="panel__label">Vertex heatmap</span>
         <button
           type="button"
           class="heatmap-switch"
@@ -80,7 +88,7 @@
           <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
         </button>
       </div>
-      <p class="panel__hint">Heuristic value (worst → best)</p>
+      <p class="panel__hint">Adjacent hex production (worst → best)</p>
       <div class="heatmap-legend" [class.heatmap-legend--muted]="!heatmapOn" aria-hidden="true">
         <span class="heatmap-legend__cap">Worst</span>
         <span class="heatmap-legend__bar"></span>
@@ -92,7 +100,7 @@
           <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--2"></i>Low</span>
           <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--3"></i>Medium</span>
           <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--4"></i>High</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--5"></i>Best</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--5"></i>Very high</span>
         </div>
       </div>
     </section>
@@ -144,7 +152,7 @@
               <span class="resource-list__meta">
                 {{ r.hexes }} {{ r.hexes === 1 ? 'hex' : 'hexes' }}
                 <span class="resource-list__dot" aria-hidden="true">·</span>
-                {{ r.pips }} pips
+                {{ r.production }} production
               </span>
             </div>
           </li>
