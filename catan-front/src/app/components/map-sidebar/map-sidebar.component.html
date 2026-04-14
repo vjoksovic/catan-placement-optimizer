@@ -4,30 +4,130 @@
       <h2 class="sidebar__title">Placement analyzer</h2>
       <span class="sidebar__chip">3 players</span>
     </div>
-    <p class="sidebar__tagline">Overall score and field heat</p>
+    <p class="sidebar__tagline">Scores, resources, heatmap</p>
 
     <div class="sidebar__actions">
       <button
         type="button"
         class="sidebar__action-btn sidebar__generate"
-        [disabled]="generateMapLoading"
-        (click)="generateMap.emit()"
+        [disabled]="generateMapDisabled"
+        (click)="openGenerateDialog()"
       >
         {{ generateMapLoading ? 'Generating…' : 'Generate map' }}
       </button>
-      <button
-        type="button"
-        class="sidebar__action-btn sidebar__start-game"
-        [disabled]="generateMapLoading || !mapGenerated"
-        (click)="startGame.emit()"
-      >
-        Start game
-      </button>
+      @if (!gameStarted) {
+        <button
+          type="button"
+          class="sidebar__action-btn sidebar__start-game"
+          [disabled]="startGameDisabled"
+          (click)="startGame.emit()"
+        >
+          Start game
+        </button>
+      } @else {
+        <button type="button" class="sidebar__action-btn sidebar__abort" (click)="openAbortDialog()">
+          Abort
+        </button>
+      }
       @if (generateMapFailed) {
         <p class="sidebar__generate-error" role="status">Could not reach server. Check the API is running.</p>
       }
     </div>
 
+    @if (generateDialogOpen) {
+      <div class="generate-overlay" (click)="closeGenerateDialog()">
+        <div
+          class="generate-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="generate-dialog-title"
+          (click)="$event.stopPropagation()"
+        >
+          <h3 id="generate-dialog-title" class="generate-dialog__title">Playstyles (3 seats)</h3>
+          <p class="generate-dialog__hint">Choose how each seat weights production, diversity, and scarcity.</p>
+          <div class="generate-dialog__row">
+            <label class="generate-dialog__label" for="ps-seat-0">White · 1st</label>
+            <select
+              id="ps-seat-0"
+              class="generate-dialog__select"
+              name="ps-seat-0"
+              [ngModel]="seatPlaystyles[0]"
+              (ngModelChange)="onSeatPlaystyleModelChange(0, $event)"
+            >
+              @for (p of playstyleOptions; track p) {
+                <option [ngValue]="p">{{ playstyleLabels[p] }}</option>
+              }
+            </select>
+          </div>
+          <div class="generate-dialog__row">
+            <label class="generate-dialog__label" for="ps-seat-1">Blue · 2nd</label>
+            <select
+              id="ps-seat-1"
+              class="generate-dialog__select"
+              name="ps-seat-1"
+              [ngModel]="seatPlaystyles[1]"
+              (ngModelChange)="onSeatPlaystyleModelChange(1, $event)"
+            >
+              @for (p of playstyleOptions; track p) {
+                <option [ngValue]="p">{{ playstyleLabels[p] }}</option>
+              }
+            </select>
+          </div>
+          <div class="generate-dialog__row">
+            <label class="generate-dialog__label" for="ps-seat-2">Orange · 3rd</label>
+            <select
+              id="ps-seat-2"
+              class="generate-dialog__select"
+              name="ps-seat-2"
+              [ngModel]="seatPlaystyles[2]"
+              (ngModelChange)="onSeatPlaystyleModelChange(2, $event)"
+            >
+              @for (p of playstyleOptions; track p) {
+                <option [ngValue]="p">{{ playstyleLabels[p] }}</option>
+              }
+            </select>
+          </div>
+          <div class="generate-dialog__actions">
+            <button type="button" class="generate-dialog__btn generate-dialog__btn--ghost" (click)="closeGenerateDialog()">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="generate-dialog__btn generate-dialog__btn--primary"
+              [disabled]="generateMapLoading"
+              (click)="confirmGenerate()"
+            >
+              Generate
+            </button>
+          </div>
+      </div>
+    </div>
+    }
+
+    @if (abortDialogOpen) {
+      <div class="generate-overlay" (click)="closeAbortDialog()">
+        <div
+          class="generate-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="abort-dialog-title"
+          (click)="$event.stopPropagation()"
+        >
+          <h3 id="abort-dialog-title" class="generate-dialog__title">Abort game?</h3>
+          <p class="generate-dialog__hint">Are you sure? You can generate a new map afterward.</p>
+          <div class="generate-dialog__actions">
+            <button type="button" class="generate-dialog__btn generate-dialog__btn--ghost" (click)="closeAbortDialog()">
+              Cancel
+            </button>
+            <button type="button" class="generate-dialog__btn generate-dialog__btn--danger" (click)="confirmAbort()">
+              Abort
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (gameStarted) {
     <div class="now-playing" aria-label="Current turn">
       <div class="now-playing__current">
         <span class="now-playing__kicker">Now</span>
@@ -48,6 +148,7 @@
             type="button"
             class="now-playing__btn"
             [class.now-playing__btn--active]="nowPlayingSeat === s"
+            [disabled]="nowPlayingSeatLocked"
             (click)="nowPlayingSeatChange.emit(s)"
           >
             {{ s }}
@@ -55,11 +156,12 @@
         }
       </div>
     </div>
+    }
   </header>
 
   <div class="sidebar__body" id="map-analysis-panel">
     <section class="overall-hero" aria-label="Overall score by seat">
-      @for (p of playersByOverall; track p.seatLabel) {
+      @for (p of playersBySeat; track p.seatLabel) {
         <div
           class="overall-tile"
           [class.overall-tile--white]="p.seatLabel === '1st'"
@@ -74,7 +176,7 @@
 
     <section class="panel panel--heatmap">
       <div class="panel__row">
-        <span class="panel__label">Vertex heatmap</span>
+        <span class="panel__label">Heuristic heatmap</span>
         <button
           type="button"
           class="heatmap-switch"
@@ -88,34 +190,34 @@
           <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
         </button>
       </div>
-      <p class="panel__hint">Adjacent hex production (worst → best)</p>
+      <p class="panel__hint">Spot grades 1 (worst) to 5 (best) by heuristic</p>
       <div class="heatmap-legend" [class.heatmap-legend--muted]="!heatmapOn" aria-hidden="true">
-        <span class="heatmap-legend__cap">Worst</span>
+        <span class="heatmap-legend__cap">1</span>
         <span class="heatmap-legend__bar"></span>
-        <span class="heatmap-legend__cap">Best</span>
+        <span class="heatmap-legend__cap">5</span>
       </div>
-      <div class="heatmap-explain" aria-label="How to read heatmap colors">
+      <div class="heatmap-explain" aria-label="Heatmap grades 1 to 5">
         <div class="heatmap-tier-list">
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--1"></i>Very low</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--2"></i>Low</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--3"></i>Medium</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--4"></i>High</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--5"></i>Very high</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--1"></i><span class="heatmap-tier__grade">1</span> Worst</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--2"></i><span class="heatmap-tier__grade">2</span> Low</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--3"></i><span class="heatmap-tier__grade">3</span> Medium</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--4"></i><span class="heatmap-tier__grade">4</span> High</span>
+          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--5"></i><span class="heatmap-tier__grade">5</span> Best</span>
         </div>
       </div>
     </section>
 
     <section class="panel panel--table" aria-label="Heuristic breakdown">
-      <h3 class="panel__table-title">Details</h3>
+      <h3 class="panel__table-title">Scores by seat</h3>
       <div class="table-wrap">
         <table class="score-table">
           <thead>
             <tr>
               <th scope="col">Seat</th>
+              <th scope="col" class="score-table__num">Prod</th>
+              <th scope="col" class="score-table__num">Div</th>
+              <th scope="col" class="score-table__num">Scar</th>
               <th scope="col" class="score-table__num score-table__lead">Overall</th>
-              <th scope="col" class="score-table__num">Res</th>
-              <th scope="col" class="score-table__num">Poss</th>
-              <th scope="col" class="score-table__num">Scarc</th>
             </tr>
           </thead>
           <tbody>
@@ -126,10 +228,10 @@
                 [class.score-table__row--orange]="p.seatLabel === '3rd'"
               >
                 <th scope="row">{{ p.seatLabel }}</th>
-                <td class="score-table__num score-table__lead">{{ p.overall }}</td>
-                <td class="score-table__num">{{ p.resources }}</td>
                 <td class="score-table__num">{{ p.possibility }}</td>
+                <td class="score-table__num">{{ p.resources }}</td>
                 <td class="score-table__num">{{ p.scarcity }}</td>
+                <td class="score-table__num score-table__lead">{{ p.overall }}</td>
               </tr>
             }
           </tbody>
@@ -138,7 +240,7 @@
     </section>
 
     <section class="panel panel--resources" aria-label="Resources on this map">
-      <h3 class="panel__table-title">On this map</h3>
+      <h3 class="panel__table-title">Production by resource</h3>
       <ul class="resource-list">
         @for (r of resourceOnMap; track r.resource) {
           <li class="resource-list__item">
@@ -150,7 +252,7 @@
             <div class="resource-list__body">
               <span class="resource-list__name">{{ r.label }}</span>
               <span class="resource-list__meta">
-                {{ r.hexes }} {{ r.hexes === 1 ? 'hex' : 'hexes' }}
+                {{ r.hexes }} {{ r.hexes === 1 ? 'field' : 'fields' }}
                 <span class="resource-list__dot" aria-hidden="true">·</span>
                 {{ r.production }} production
               </span>

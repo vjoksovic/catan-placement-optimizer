@@ -1,8 +1,11 @@
-package com.example.catan.models;
+package com.example.catan.models.map;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
+import com.example.catan.models.enums.Playstyle;
+import com.example.catan.models.enums.Resource;
 import com.example.catan.utils.ConfigLoader;
 
 import lombok.Getter;
@@ -12,8 +15,10 @@ import lombok.Setter;
 public class Map {
   private List<Field> fields;
   private List<Vertex> vertices;
+  private List<Player> players;
+  private HashMap<Resource, Integer> production;
 
-  public Map() {
+  public Map(List<Playstyle> playstyles) {
     List<List<Integer>> neighbourLists = ConfigLoader.loadFieldNeighbours();
     List<List<Integer>> fieldVertexIds = ConfigLoader.loadFieldVertexIds();
     if (fieldVertexIds.size() != neighbourLists.size()) {
@@ -32,6 +37,14 @@ public class Map {
           this.fields.get(fieldId).getVertices().add(vertexId);
         }
       }
+    }
+    this.players = new ArrayList<>();
+    for (int i = 0; i < playstyles.size(); i++) {
+      this.players.add(new Player(i, playstyles.get(i)));
+    }
+    this.production = new HashMap<>();
+    for (Resource resource : Resource.values()) {
+      this.production.put(resource, 0);
     }
   }
 }

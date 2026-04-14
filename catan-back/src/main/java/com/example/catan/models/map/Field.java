@@ -1,4 +1,4 @@
-package com.example.catan.models;
+package com.example.catan.models.map;
 
 import java.util.List;
 

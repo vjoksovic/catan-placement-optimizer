@@ -11,6 +11,7 @@ import type {
   BoardGraph,
   CatanMap,
   HexField,
+  PieceSeat,
   PlacementAnalysis,
   PlayerHeuristicRow,
   RandomPlayerPieces,
@@ -148,10 +149,10 @@ function mixRgb(
 }
 
 export function resourceRowsOnMap(map: CatanMap): ResourceOnMapRow[] {
-  const order: readonly Resource[] = [RESOURCE.Lumber, RESOURCE.Brick, RESOURCE.Wool, RESOURCE.Grain, RESOURCE.Ore];
+  const order: readonly Resource[] = [RESOURCE.Wood, RESOURCE.Brick, RESOURCE.Sheep, RESOURCE.Wheat, RESOURCE.Ore];
   const labels: Record<Resource, string> = {
-    [RESOURCE.Lumber]: 'Lumber', [RESOURCE.Brick]: 'Brick', [RESOURCE.Wool]: 'Wool',
-    [RESOURCE.Grain]: 'Grain', [RESOURCE.Ore]: 'Ore', [RESOURCE.Desert]: 'Desert',
+    [RESOURCE.Wood]: 'Wood', [RESOURCE.Brick]: 'Brick', [RESOURCE.Sheep]: 'Sheep',
+    [RESOURCE.Wheat]: 'Wheat', [RESOURCE.Ore]: 'Ore', [RESOURCE.Desert]: 'Desert',
   };
   const hexes = new Map<Resource, number>();
   const production = new Map<Resource, number>();
@@ -159,7 +160,18 @@ export function resourceRowsOnMap(map: CatanMap): ResourceOnMapRow[] {
   for (const h of map.hexes) {
     if (h.resource === RESOURCE.Desert) continue;
     hexes.set(h.resource, (hexes.get(h.resource) ?? 0) + 1);
-    production.set(h.resource, (production.get(h.resource) ?? 0) + (h.productionValue ?? 0));
+    const backendProduction = map.productionByResource?.[h.resource];
+    if (typeof backendProduction !== 'number') {
+      production.set(h.resource, (production.get(h.resource) ?? 0) + (h.productionValue ?? 0));
+    }
+  }
+  if (map.productionByResource) {
+    for (const resource of order) {
+      const backendValue = map.productionByResource[resource];
+      if (typeof backendValue === 'number') {
+        production.set(resource, backendValue);
+      }
+    }
   }
   return order.map((resource) => ({
     resource,
@@ -171,15 +183,15 @@ export function resourceRowsOnMap(map: CatanMap): ResourceOnMapRow[] {
 }
 
 const SEAT_RESOURCE_WEIGHT: readonly [Record<Resource, number>, Record<Resource, number>, Record<Resource, number>] = [
-  { [RESOURCE.Lumber]: 0.19, [RESOURCE.Brick]: 0.17, [RESOURCE.Wool]: 0.19, [RESOURCE.Grain]: 0.23, [RESOURCE.Ore]: 0.22, [RESOURCE.Desert]: 0 },
-  { [RESOURCE.Lumber]: 0.21, [RESOURCE.Brick]: 0.19, [RESOURCE.Wool]: 0.2, [RESOURCE.Grain]: 0.21, [RESOURCE.Ore]: 0.19, [RESOURCE.Desert]: 0 },
-  { [RESOURCE.Lumber]: 0.22, [RESOURCE.Brick]: 0.18, [RESOURCE.Wool]: 0.22, [RESOURCE.Grain]: 0.19, [RESOURCE.Ore]: 0.19, [RESOURCE.Desert]: 0 },
+  { [RESOURCE.Wood]: 0.19, [RESOURCE.Brick]: 0.17, [RESOURCE.Sheep]: 0.19, [RESOURCE.Wheat]: 0.23, [RESOURCE.Ore]: 0.22, [RESOURCE.Desert]: 0 },
+  { [RESOURCE.Wood]: 0.21, [RESOURCE.Brick]: 0.19, [RESOURCE.Sheep]: 0.2, [RESOURCE.Wheat]: 0.21, [RESOURCE.Ore]: 0.19, [RESOURCE.Desert]: 0 },
+  { [RESOURCE.Wood]: 0.22, [RESOURCE.Brick]: 0.18, [RESOURCE.Sheep]: 0.22, [RESOURCE.Wheat]: 0.19, [RESOURCE.Ore]: 0.19, [RESOURCE.Desert]: 0 },
 ];
 
 export function analyzePlacement(map: CatanMap): PlacementAnalysis {
   const byId = new Map(map.hexes.map((h) => [h.id, h]));
   const pipsByResource = new Map<Resource, number>([
-    [RESOURCE.Lumber, 0], [RESOURCE.Brick, 0], [RESOURCE.Wool, 0], [RESOURCE.Grain, 0], [RESOURCE.Ore, 0],
+    [RESOURCE.Wood, 0], [RESOURCE.Brick, 0], [RESOURCE.Sheep, 0], [RESOURCE.Wheat, 0], [RESOURCE.Ore, 0],
   ]);
   for (const id of HEX_IDS) {
     const h = byId.get(id);
@@ -190,9 +202,9 @@ export function analyzePlacement(map: CatanMap): PlacementAnalysis {
   for (const p of pipsByResource.values()) totalPips += p;
   const avg = totalPips > 0 ? totalPips / 5 : 1;
   const scarcity: Record<Resource, number> = {
-    [RESOURCE.Lumber]: 1, [RESOURCE.Brick]: 1, [RESOURCE.Wool]: 1, [RESOURCE.Grain]: 1, [RESOURCE.Ore]: 1, [RESOURCE.Desert]: 1,
+    [RESOURCE.Wood]: 1, [RESOURCE.Brick]: 1, [RESOURCE.Sheep]: 1, [RESOURCE.Wheat]: 1, [RESOURCE.Ore]: 1, [RESOURCE.Desert]: 1,
   };
-  for (const r of [RESOURCE.Lumber, RESOURCE.Brick, RESOURCE.Wool, RESOURCE.Grain, RESOURCE.Ore] as const) {
+  for (const r of [RESOURCE.Wood, RESOURCE.Brick, RESOURCE.Sheep, RESOURCE.Wheat, RESOURCE.Ore] as const) {
     scarcity[r] = Math.min(2.4, Math.max(0.65, avg / ((pipsByResource.get(r) ?? 0) + 0.25)));
   }
 
@@ -254,11 +266,33 @@ export function analyzePlacement(map: CatanMap): PlacementAnalysis {
   return { players, overallHeat01ByHex };
 }
 
+/** Heatmap vertex grade 1 (worst) … 5 (best), aligned with {@link heatOverlayRgbaByPips}. */
+export type VertexHeatGrade = 1 | 2 | 3 | 4 | 5;
+
 /**
- * Sum of adjacent hex production pips per board vertex (settlement intersection),
- * then min–max normalized and mapped to the same 5-tier colors as field pips.
+ * Per-vertex grade 1–5: API heatmap ratings, or pip-sum normalization on static maps.
  */
-export function vertexHeatFillByVertexId(graph: BoardGraph, map: CatanMap): ReadonlyMap<number, string> {
+export function vertexHeatGradeByVertexId(
+  graph: BoardGraph,
+  map: CatanMap,
+): ReadonlyMap<number, VertexHeatGrade> {
+  const ratingToGrade: Record<'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH', VertexHeatGrade> = {
+    VERY_LOW: 1,
+    LOW: 2,
+    MEDIUM: 3,
+    HIGH: 4,
+    VERY_HIGH: 5,
+  };
+  if ((map.vertices ?? []).length > 0 && map.vertices.some((v) => !!v.heatmapRating)) {
+    const grades = new Map<number, VertexHeatGrade>();
+    for (const v of map.vertices) {
+      if (v.heatmapRating) {
+        grades.set(v.id, ratingToGrade[v.heatmapRating] ?? 3);
+      }
+    }
+    return grades;
+  }
+
   const byId = new Map(map.hexes.map((h) => [h.id, h]));
   const totals = new Map<number, number>();
 
@@ -284,9 +318,9 @@ export function vertexHeatFillByVertexId(graph: BoardGraph, map: CatanMap): Read
   if (maxT === -Infinity) maxT = 0;
   const span = maxT - minT;
 
-  const fills = new Map<number, string>();
+  const grades = new Map<number, VertexHeatGrade>();
   for (const [vid, t] of totals) {
-    let tier: number;
+    let tier: VertexHeatGrade;
     if (t <= 0) {
       tier = 1;
     } else if (span < 1e-9) {
@@ -294,11 +328,44 @@ export function vertexHeatFillByVertexId(graph: BoardGraph, map: CatanMap): Read
     } else {
       const norm = (t - minT) / span;
       const idx = Math.min(4, Math.floor(norm * 5));
-      tier = idx + 1;
+      tier = (idx + 1) as VertexHeatGrade;
     }
-    fills.set(vid, heatOverlayRgbaByPips(tier));
+    grades.set(vid, tier);
+  }
+  return grades;
+}
+
+/**
+ * Sum of adjacent hex production pips per board vertex (settlement intersection),
+ * then min–max normalized and mapped to the same 5-tier colors as field pips.
+ */
+export function vertexHeatFillByVertexId(graph: BoardGraph, map: CatanMap): ReadonlyMap<number, string> {
+  const grades = vertexHeatGradeByVertexId(graph, map);
+  const fills = new Map<number, string>();
+  for (const [vid, g] of grades) {
+    fills.set(vid, heatOverlayRgbaByPips(g));
   }
   return fills;
+}
+
+/**
+ * First hex (by id) that contains this vertex → field number and corner spot 1–6 (for UI labels).
+ */
+export function fieldSpotForVertex(
+  vertexId: number,
+  map: CatanMap,
+  graph: BoardGraph,
+): { fieldNumber: number; spot: number } | null {
+  const hexes = [...map.hexes].sort((a, b) => a.id - b.id);
+  for (const h of hexes) {
+    const corners = h.vertexIds?.length ? [...h.vertexIds] : graph.hexCornerVertexIds[h.id];
+    if (!corners?.length) continue;
+    const idx = corners.indexOf(vertexId);
+    if (idx >= 0) {
+      return { fieldNumber: h.fieldNumber, spot: idx + 1 };
+    }
+  }
+  return null;
 }
 
 export function buildBoardGraph(): BoardGraph {
@@ -348,64 +415,65 @@ export function buildBoardGraph(): BoardGraph {
   return { vertexPositions, hexCornerVertexIds, edges, adjacency: roAdj };
 }
 
-export function placeRandomPlayerPieces(g: BoardGraph, rng: () => number = Math.random): RandomPlayerPieces {
-  const shuffle = <T,>(arr: T[]) => {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [arr[i], arr[j]] = [arr[j]!, arr[i]!];
-    }
-  };
-  const edgeKey = (a: number, b: number) => `${Math.min(a, b)},${Math.max(a, b)}`;
-  const shorten = (x1: number, y1: number, x2: number, y2: number) => {
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, t = 0.14;
-    return { x1: x1 + (mx - x1) * t, y1: y1 + (my - y1) * t, x2: x2 + (mx - x2) * t, y2: y2 + (my - y2) * t };
-  };
-  for (let attempt = 0; attempt < 400; attempt++) {
-    const verts = Array.from({ length: g.vertexPositions.length }, (_, i) => i);
-    shuffle(verts);
-    const chosen = new Set<number>();
-    for (const v of verts) {
-      if (chosen.size >= 6) break;
-      let ok = true;
-      for (const n of g.adjacency.get(v) ?? []) if (chosen.has(n)) { ok = false; break; }
-      if (ok) chosen.add(v);
-    }
-    if (chosen.size < 6) continue;
-    const arr = [...chosen];
-    shuffle(arr);
-    const bySeat: [number, number][] = [[arr[0]!, arr[1]!], [arr[2]!, arr[3]!], [arr[4]!, arr[5]!]];
-    const settlements: SettlementView[] = [];
-    for (let seat = 0; seat < 3; seat++) {
-      const [a, b] = bySeat[seat]!;
-      const pa = g.vertexPositions[a]!, pb = g.vertexPositions[b]!;
-      settlements.push({ seat: seat as 0 | 1 | 2, vertexId: a, x: pa.x, y: pa.y }, { seat: seat as 0 | 1 | 2, vertexId: b, x: pb.x, y: pb.y });
-    }
-    const roads: RoadView[] = [];
-    const used = new Set<string>();
-    const order: (0 | 1 | 2)[] = [0, 1, 2];
-    shuffle(order);
-    let okRoads = true;
-    for (const seat of order) {
-      const candidates: [number, number][] = [];
-      for (const v of bySeat[seat]!) {
-        for (const u of g.adjacency.get(v) ?? []) {
-          const k = edgeKey(u, v);
-          if (!used.has(k)) candidates.push([Math.min(u, v), Math.max(u, v)]);
-        }
-      }
-      shuffle(candidates);
-      if (candidates.length < 2) { okRoads = false; break; }
-      for (let i = 0; i < 2; i++) {
-        const [u, v] = candidates[i]!;
-        used.add(edgeKey(u, v));
-        const p1 = g.vertexPositions[u]!, p2 = g.vertexPositions[v]!;
-        const seg = shorten(p1.x, p1.y, p2.x, p2.y);
-        roads.push({ seat, v1: u, v2: v, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
-      }
-    }
-    if (okRoads) return { settlements, roads };
+/**
+ * Settlement/road SVG data from {@link CatanMap.players} only:
+ * {@link MapPlayerData.settlementVertexIds} and {@link MapPlayerData.roads} — not from vertex neighbour flags.
+ */
+export function piecesFromApiMap(map: CatanMap, g: BoardGraph): RandomPlayerPieces | null {
+  const players = map.players;
+  if (!players?.length) {
+    return null;
   }
-  throw new Error('placeRandomPlayerPieces: failed to place pieces after retries');
+  const hasSettlementData = players.some(
+    (p) => p.settlementVertexIds && p.settlementVertexIds.length > 0,
+  );
+  if (!hasSettlementData) {
+    return null;
+  }
+  const shorten = (x1: number, y1: number, x2: number, y2: number) => {
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const t = 0.14;
+    return {
+      x1: x1 + (mx - x1) * t,
+      y1: y1 + (my - y1) * t,
+      x2: x2 + (mx - x2) * t,
+      y2: y2 + (my - y2) * t,
+    };
+  };
+  const settlements: SettlementView[] = [];
+  const roads: RoadView[] = [];
+  for (const p of players) {
+    const ids = p.settlementVertexIds;
+    if (!ids?.length) {
+      continue;
+    }
+    const seat = p.id as PieceSeat;
+    if (seat < 0 || seat > 2) {
+      continue;
+    }
+    for (const vid of ids) {
+      const pos = g.vertexPositions[vid];
+      if (!pos) {
+        continue;
+      }
+      settlements.push({ seat, vertexId: vid, x: pos.x, y: pos.y });
+    }
+    for (const pair of p.roads ?? []) {
+      const v1 = pair[0];
+      const v2 = pair[1];
+      const pt1 = g.vertexPositions[v1];
+      const pt2 = g.vertexPositions[v2];
+      if (!pt1 || !pt2) {
+        continue;
+      }
+      const seg = shorten(pt1.x, pt1.y, pt2.x, pt2.y);
+      roads.push({ seat, v1, v2, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+    }
+  }
+  if (!settlements.length) {
+    return null;
+  }
+  return { settlements, roads };
 }
-
 

@@ -1,15 +1,14 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { boardDtoToCatanMap } from '../../models/board.mapper';
+import { boardDtoToCatanMap, normalizeCatanMapResources } from '../../models/board.mapper';
 import type { CatanMap } from '../../models/map.interface';
 import {
   createStaticCatanMap,
   buildBoardGraph,
-  placeRandomPlayerPieces,
-  allHexScreenXY,
+  piecesFromApiMap,
 } from './map-logic.service';
-import { HEX_CIRCUMRADIUS } from '../../models/map.const';
 import { MapApiService } from './map-api.service';
+import type { PlaystyleId } from '../../models/playstyle';
 
 @Injectable({ providedIn: 'root' })
 export class MapDataService {
@@ -24,11 +23,11 @@ export class MapDataService {
   readonly generateMapFailed = signal(false);
   readonly playerPieces = computed(() => this.createPlayerPieces(this.mapState()));
 
-  async generateMap(): Promise<void> {
+  async generateMap(playstyles: readonly PlaystyleId[]): Promise<void> {
     this.generateMapLoading.set(true);
     this.generateMapFailed.set(false);
     try {
-      const dto = await firstValueFrom(this.mapApi.generateMap());
+      const dto = await firstValueFrom(this.mapApi.generateMap(playstyles));
       const generatedMap = boardDtoToCatanMap(dto);
       this.mapState.set(generatedMap);
       this.hasGeneratedMap.set(true);
@@ -63,7 +62,7 @@ export class MapDataService {
     const raw = storage.getItem(MapDataService.GENERATED_MAP_STORAGE_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as CatanMap;
+      return normalizeCatanMapResources(JSON.parse(raw) as CatanMap);
     } catch {
       storage.removeItem(MapDataService.GENERATED_MAP_STORAGE_KEY);
       return null;
@@ -84,33 +83,12 @@ export class MapDataService {
   }
 
   private createPlayerPieces(map: CatanMap) {
-    const xy = allHexScreenXY();
-    const pieces = placeRandomPlayerPieces(buildBoardGraph());
-    const firstHexId = map.hexes[0]?.id ?? 1;
-    const pinned = this.worldSpot(firstHexId, 3, xy);
-    let placed = false;
-    const settlements = pieces.settlements.map((s) => {
-      if (!placed && s.seat === 0) {
-        placed = true;
-        return { ...s, x: pinned.x, y: pinned.y };
-      }
-      return s;
-    });
-    return { ...pieces, settlements };
-  }
-
-  private worldSpot(
-    fieldNumber: number,
-    spotNum: number,
-    xy: Readonly<Record<number, { x: number; y: number }>>,
-  ): { x: number; y: number } {
-    const c = xy[fieldNumber] ?? { x: 0, y: 0 };
-    const i = Math.max(1, Math.min(6, spotNum)) - 1;
-    const rad = ((-90 + i * 60) * Math.PI) / 180;
-    return {
-      x: c.x + HEX_CIRCUMRADIUS * Math.cos(rad),
-      y: c.y + HEX_CIRCUMRADIUS * Math.sin(rad),
-    };
+    const graph = buildBoardGraph();
+    const fromApi = piecesFromApiMap(map, graph);
+    if (fromApi) {
+      return fromApi;
+    }
+    return { settlements: [], roads: [] };
   }
 }
 

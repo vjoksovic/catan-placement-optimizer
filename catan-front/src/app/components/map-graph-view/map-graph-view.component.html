@@ -1,18 +1,24 @@
 <div class="page">
   <app-map-sidebar
     [nowPlayingSeats]="facade.nowPlayingSeats"
-    [nowPlayingSeat]="facade.nowPlayingSeat()"
+    [nowPlayingSeat]="facade.nowPlayingSeatEffective()"
+    [nowPlayingSeatLocked]="facade.nowPlayingSeatChoiceLocked()"
     [nowPlayingCaption]="facade.nowPlayingCaption()"
     [heatmapOn]="facade.heatmapOn()"
+    [playersBySeat]="facade.playersBySeat()"
     [playersByOverall]="facade.playersByOverall()"
     [resourceOnMap]="facade.resourceOnMap()"
     [generateMapLoading]="facade.generateMapLoading()"
     [generateMapFailed]="facade.generateMapFailed()"
     [mapGenerated]="facade.mapGenerated()"
+    [gameStarted]="facade.gameStarted()"
+    [generateMapDisabled]="facade.generateMapDisabled()"
+    [startGameDisabled]="facade.startGameDisabled()"
     (nowPlayingSeatChange)="facade.setNowPlayingSeat($event)"
     (heatmapToggle)="facade.toggleHeatmap()"
-    (generateMap)="facade.generateMap()"
+    (generateMap)="facade.generateMap($event)"
     (startGame)="facade.startGame()"
+    (abortGame)="facade.confirmAbortGame()"
   />
 
   <div class="map-stage">
@@ -24,16 +30,16 @@
           <stop offset="100%" stop-color="#232f37" />
         </linearGradient>
 
-        <pattern id="hex-fill-lumber" width="14" height="14" patternUnits="userSpaceOnUse">
+        <pattern id="hex-fill-wood" width="14" height="14" patternUnits="userSpaceOnUse">
           <rect width="14" height="14" fill="#3d5c4f" />
         </pattern>
         <pattern id="hex-fill-brick" width="14" height="14" patternUnits="userSpaceOnUse">
           <rect width="14" height="14" fill="#8f675c" />
         </pattern>
-        <pattern id="hex-fill-wool" width="14" height="14" patternUnits="userSpaceOnUse">
+        <pattern id="hex-fill-sheep" width="14" height="14" patternUnits="userSpaceOnUse">
           <rect width="14" height="14" fill="#5e7a62" />
         </pattern>
-        <pattern id="hex-fill-grain" width="14" height="14" patternUnits="userSpaceOnUse">
+        <pattern id="hex-fill-wheat" width="14" height="14" patternUnits="userSpaceOnUse">
           <rect width="14" height="14" fill="#9c8f52" />
         </pattern>
         <pattern id="hex-fill-ore" width="14" height="14" patternUnits="userSpaceOnUse">
@@ -78,27 +84,40 @@
               </text>
             </g>
           }
-          @if (facade.heatmapOn()) {
-            <text class="field-index-label" x="0" y="-52" text-anchor="middle" dominant-baseline="middle">
-              {{ h.id }}
-            </text>
-          }
         </g>
       }
 
       @if (facade.heatmapOn()) {
         <g class="vertex-heat-layer">
           @for (v of facade.heatmapVertexMarkers(); track v.id) {
-            <circle
-              class="vertex-heat-dot"
-              [class.vertex-heat-dot--ring]="v.ring"
-              [class.vertex-heat-dot--selected]="v.selected"
-              [attr.cx]="v.x"
-              [attr.cy]="v.y"
-              r="18"
-              [attr.fill]="v.fill"
+            <g
+              class="vertex-heat-marker"
+              [attr.transform]="'translate(' + v.x + ',' + v.y + ')'"
+              (pointerenter)="facade.onVertexHeatPointerEnter(v.id, $event)"
+              (pointermove)="facade.onVertexHeatPointerMove(v.id, $event)"
+              (pointerleave)="facade.onVertexHeatPointerLeave()"
               (click)="facade.onVertexClick(v.id, $event)"
-            />
+            >
+              <circle
+                class="vertex-heat-dot"
+                [class.vertex-heat-dot--ring]="v.ring"
+                [class.vertex-heat-dot--selected]="v.selected"
+                cx="0"
+                cy="0"
+                r="18"
+                [attr.fill]="v.fill"
+              />
+              <text
+                class="vertex-heat-grade"
+                x="0"
+                y="0"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                pointer-events="none"
+              >
+                {{ v.grade }}
+              </text>
+            </g>
           }
         </g>
       }
@@ -128,22 +147,27 @@
           </g>
         }
       </g>
-      @if (facade.heatmapOn()) {
-        <g class="vertex-index-layer" pointer-events="none">
-          @for (v of facade.heatmapVertexMarkers(); track v.id) {
-            <text
-              class="vertex-index-label"
-              [attr.x]="v.x"
-              [attr.y]="v.y"
-              text-anchor="middle"
-              dominant-baseline="middle"
-            >
-              {{ v.id }}
-            </text>
-          }
-        </g>
-      }
     </svg>
   </div>
+  @if (facade.vertexHeatTooltipView(); as tip) {
+    <aside
+      class="vertex-heat-tooltip"
+      [class.vertex-heat-tooltip--above]="!tip.placeBelow"
+      [class.vertex-heat-tooltip--below]="tip.placeBelow"
+      [style.left.px]="tip.screenX"
+      [style.top.px]="tip.screenY"
+      role="tooltip"
+    >
+      <header class="vertex-heat-tooltip__heading">Heuristic values</header>
+      <dl class="vertex-heat-tooltip__dl">
+        @for (row of tip.rows; track row.label) {
+          <dt class="vertex-heat-tooltip__label">{{ row.label }}</dt>
+          <dd class="vertex-heat-tooltip__value">
+            <output class="vertex-heat-tooltip__res">{{ row.value }}</output>
+          </dd>
+        }
+      </dl>
+    </aside>
+  }
 </div>
 

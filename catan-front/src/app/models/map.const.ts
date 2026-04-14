@@ -1,10 +1,10 @@
 import type { Resource } from './map.interface';
 
 export const RESOURCE = {
-  Lumber: 'lumber',
+  Wood: 'wood',
   Brick: 'brick',
-  Wool: 'wool',
-  Grain: 'grain',
+  Sheep: 'sheep',
+  Wheat: 'wheat',
   Ore: 'ore',
   Desert: 'desert',
 } as const;
@@ -48,25 +48,25 @@ export const HEX_POLYGON_POINTS = (() => {
 })();
 
 export const STATIC_RESOURCE_BY_HEX: Readonly<Record<number, Resource>> = {
-  0: RESOURCE.Lumber,
-  1: RESOURCE.Wool,
-  2: RESOURCE.Grain,
+  0: RESOURCE.Wood,
+  1: RESOURCE.Sheep,
+  2: RESOURCE.Wheat,
   3: RESOURCE.Brick,
   4: RESOURCE.Ore,
-  5: RESOURCE.Grain,
-  6: RESOURCE.Wool,
-  7: RESOURCE.Lumber,
+  5: RESOURCE.Wheat,
+  6: RESOURCE.Sheep,
+  7: RESOURCE.Wood,
   8: RESOURCE.Brick,
   9: RESOURCE.Desert,
   10: RESOURCE.Ore,
-  11: RESOURCE.Grain,
-  12: RESOURCE.Wool,
-  13: RESOURCE.Lumber,
+  11: RESOURCE.Wheat,
+  12: RESOURCE.Sheep,
+  13: RESOURCE.Wood,
   14: RESOURCE.Brick,
   15: RESOURCE.Ore,
-  16: RESOURCE.Grain,
-  17: RESOURCE.Wool,
-  18: RESOURCE.Lumber,
+  16: RESOURCE.Wheat,
+  17: RESOURCE.Sheep,
+  18: RESOURCE.Wood,
 };
 
 export const STATIC_PRODUCTION_BY_HEX: Readonly<Record<number, number | null>> = {
@@ -75,23 +75,48 @@ export const STATIC_PRODUCTION_BY_HEX: Readonly<Record<number, number | null>> =
 };
 
 export const RESOURCE_TILE_COLOR: Record<Resource, string> = {
-  [RESOURCE.Lumber]: '#3d5c4f',
+  [RESOURCE.Wood]: '#3d5c4f',
   [RESOURCE.Brick]: '#8f675c',
-  [RESOURCE.Wool]: '#5e7a62',
-  [RESOURCE.Grain]: '#9c8f52',
+  [RESOURCE.Sheep]: '#5e7a62',
+  [RESOURCE.Wheat]: '#9c8f52',
   [RESOURCE.Ore]: '#6f767e',
   [RESOURCE.Desert]: '#a68f6b',
 };
 
 export const HEX_RESOURCE_PATTERN_FILL: Record<Resource, string> = {
-  [RESOURCE.Lumber]: 'url(#hex-fill-lumber)',
+  [RESOURCE.Wood]: 'url(#hex-fill-wood)',
   [RESOURCE.Brick]: 'url(#hex-fill-brick)',
-  [RESOURCE.Wool]: 'url(#hex-fill-wool)',
-  [RESOURCE.Grain]: 'url(#hex-fill-grain)',
+  [RESOURCE.Sheep]: 'url(#hex-fill-sheep)',
+  [RESOURCE.Wheat]: 'url(#hex-fill-wheat)',
   [RESOURCE.Ore]: 'url(#hex-fill-ore)',
   [RESOURCE.Desert]: 'url(#hex-fill-desert)',
 };
 
-/** Flat fill when vertex heatmap is on so tile resources do not compete with vertex colors. */
-export const HEX_FILL_HEATMAP_NEUTRAL = '#3a434a';
+function mixRgbHex(from: string, to: string, amountTowardTo: number): string {
+  const parse = (hex: string) => {
+    const h = hex.startsWith('#') ? hex.slice(1) : hex;
+    const n = parseInt(h, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  };
+  const a = parse(from);
+  const b = parse(to);
+  const t = Math.max(0, Math.min(1, amountTowardTo));
+  const r = Math.round(a.r + (b.r - a.r) * t);
+  const g = Math.round(a.g + (b.g - a.g) * t);
+  const bl = Math.round(a.b + (b.b - a.b) * t);
+  return `#${[r, g, bl].map((x) => x.toString(16).padStart(2, '0')).join('')}`;
+}
+
+/** Muted slate blended into resource hues so fields stay readable but subordinate to vertex heat. */
+const HEATMAP_FIELD_MUTE_BG = '#2a323a';
+
+/** Solid fills for heatmap mode: same resources as normal play, washed toward slate. */
+export const HEX_RESOURCE_FILL_HEATMAP_WASHED: Record<Resource, string> = {
+  [RESOURCE.Wood]: mixRgbHex(RESOURCE_TILE_COLOR[RESOURCE.Wood], HEATMAP_FIELD_MUTE_BG, 0.5),
+  [RESOURCE.Brick]: mixRgbHex(RESOURCE_TILE_COLOR[RESOURCE.Brick], HEATMAP_FIELD_MUTE_BG, 0.5),
+  [RESOURCE.Sheep]: mixRgbHex(RESOURCE_TILE_COLOR[RESOURCE.Sheep], HEATMAP_FIELD_MUTE_BG, 0.5),
+  [RESOURCE.Wheat]: mixRgbHex(RESOURCE_TILE_COLOR[RESOURCE.Wheat], HEATMAP_FIELD_MUTE_BG, 0.5),
+  [RESOURCE.Ore]: mixRgbHex(RESOURCE_TILE_COLOR[RESOURCE.Ore], HEATMAP_FIELD_MUTE_BG, 0.5),
+  [RESOURCE.Desert]: mixRgbHex(RESOURCE_TILE_COLOR[RESOURCE.Desert], HEATMAP_FIELD_MUTE_BG, 0.52),
+};
 

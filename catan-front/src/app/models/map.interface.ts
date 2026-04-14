@@ -2,6 +2,7 @@ import { RESOURCE } from './map.const';
 
 export type Resource = (typeof RESOURCE)[keyof typeof RESOURCE];
 export type PieceSeat = 0 | 1 | 2;
+export type HeatmapRating = 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
 
 export interface HexField {
   readonly id: number;
@@ -17,12 +18,39 @@ export interface BoardVertexData {
   readonly id: number;
   readonly fields: readonly number[];
   readonly neighbours: readonly number[];
+  /** Present when returned from the Java API (vertex heuristics). */
+  readonly isAccessible?: boolean;
+  readonly heuristicValue?: number;
+  /** Vertex-level production heuristic (not the same as hex token pips). */
+  readonly vertexProductionValue?: number;
+  readonly resourceDiversityValue?: number;
+  readonly numberDiversityValue?: number;
+  readonly scarcityValue?: number;
+  readonly heatmapRating?: HeatmapRating;
+}
+
+/** Seat data from `com.example.catan.models.Player` JSON. */
+export interface MapPlayerData {
+  readonly id: number;
+  readonly playstyle: string;
+  readonly productionScore: number;
+  readonly diversityScore: number;
+  readonly scarcityScore: number;
+  readonly totalScore: number;
+  readonly isPlaying: boolean;
+  readonly settlementVertexIds?: readonly number[];
+  /** Road edges as vertex pairs (smaller id first). */
+  readonly roads?: readonly (readonly [number, number])[];
 }
 
 export interface CatanMap {
   readonly hexes: readonly HexField[];
   readonly neighbours: Readonly<Record<number, readonly number[]>>;
   readonly vertices: readonly BoardVertexData[];
+  /** Present on API-generated maps (`Map.players`). */
+  readonly players?: readonly MapPlayerData[];
+  /** Present on API-generated maps (`Map.production`). */
+  readonly productionByResource?: Readonly<Partial<Record<Resource, number>>>;
 }
 
 export interface ResourceOnMapRow {

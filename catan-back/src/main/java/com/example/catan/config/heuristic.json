@@ -1,0 +1,39 @@
+{
+  "heatmapRatingCaps": [0.15, 0.4, 0.6, 0.85],
+  "resourceWeights": {
+    "WOOD": 1.0,
+    "BRICK": 1.0,
+    "SHEEP": 0.8,
+    "WHEAT": 1.2,
+    "ORE": 1.1,
+    "DESERT": 0.0
+  },
+  "scarcityResourceMultipliers": {
+    "WOOD": 1.15,
+    "BRICK": 1.15,
+    "SHEEP": 0.85,
+    "WHEAT": 1.25,
+    "ORE": 1.25,
+    "DESERT": 0.0
+  },
+  "playstyleWeights": {
+    "BALANCED": {
+      "productionWeight": 1.0,
+      "resourceDiversityWeight": 1.0,
+      "numberDiversityWeight": 0.8,
+      "scarcityWeight": 1.0
+    },
+    "PRODUCTION_FOCUSED": {
+      "productionWeight": 1.5,
+      "resourceDiversityWeight": 0.4,
+      "numberDiversityWeight": 0.4,
+      "scarcityWeight": 0.4
+    },
+    "SCARCITY_FOCUSED": {
+      "productionWeight": 0.7,
+      "resourceDiversityWeight": 0.5,
+      "numberDiversityWeight": 0.5,
+      "scarcityWeight": 2.0
+    }
+  }
+}

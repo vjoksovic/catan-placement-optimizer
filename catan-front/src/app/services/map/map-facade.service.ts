@@ -1,11 +1,13 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
   HEX_CIRCUMRADIUS,
-  HEX_FILL_HEATMAP_NEUTRAL,
   HEX_POLYGON_POINTS,
+  HEX_RESOURCE_FILL_HEATMAP_WASHED,
   HEX_RESOURCE_PATTERN_FILL,
+  RESOURCE,
 } from '../../models/map.const';
 import { MapDataService } from './map-data.service';
+import type { PlaystyleId } from '../../models/playstyle';
 import {
   allHexScreenXY,
   analyzePlacement,
@@ -15,7 +17,9 @@ import {
   productionPips,
   resourceRowsOnMap,
   vertexHeatFillByVertexId,
+  vertexHeatGradeByVertexId,
 } from './map-logic.service';
+import type { PlayerHeuristicRow } from '../../models/map.interface';
 
 const BOARD_GRAPH = buildBoardGraph();
 
@@ -28,8 +32,41 @@ export class MapFacadeService {
   readonly nowPlayingSeats = ['1st', '2nd', '3rd'] as const satisfies readonly NowPlayingSeat[];
   readonly nowPlayingSeat = signal<NowPlayingSeat>('1st');
 
+  /** True after the user starts a session from this UI (until abort or full reload). */
+  readonly gameStarted = signal(false);
+
+  /** After abort, "Start game" stays off until a successful generate. */
+  private readonly mustRegenerateToEnableStart = signal(false);
+
+  /** Seat whose `isPlaying` is true on the API map, when present. */
+  readonly nowPlayingFromBackend = computed((): NowPlayingSeat | null => {
+    const players = this.map().players;
+    if (!players?.length) {
+      return null;
+    }
+    const active = players.find((p) => p.isPlaying);
+    if (!active) {
+      return null;
+    }
+    const byId: Record<number, NowPlayingSeat> = { 0: '1st', 1: '2nd', 2: '3rd' };
+    return byId[active.id] ?? null;
+  });
+
+  /** UI seat: backend `isPlaying` when set, otherwise local selection (static map). */
+  readonly nowPlayingSeatEffective = computed(
+    () => this.nowPlayingFromBackend() ?? this.nowPlayingSeat(),
+  );
+
+  /**
+   * After "Start game", manual seat toggles are disabled only when the API marks an active player.
+   * Before start, the now-playing block is hidden so this does not apply.
+   */
+  readonly nowPlayingSeatChoiceLocked = computed(
+    () => this.gameStarted() && this.nowPlayingFromBackend() !== null,
+  );
+
   readonly nowPlayingCaption = computed(() => {
-    const seat = this.nowPlayingSeat();
+    const seat = this.nowPlayingSeatEffective();
     if (seat === '1st') {
       return { seat: '1st', colorLabel: 'White', swatch: 'white' as const };
     }
@@ -44,18 +81,102 @@ export class MapFacadeService {
   readonly generateMapLoading = this.mapData.generateMapLoading.asReadonly();
   readonly generateMapFailed = this.mapData.generateMapFailed.asReadonly();
   readonly mapGenerated = this.mapData.mapGenerated;
+
+  /** Disabled only while generating or after "Start game" (session active). */
+  readonly generateMapDisabled = computed(
+    () => this.generateMapLoading() || this.gameStarted(),
+  );
+
+  readonly startGameDisabled = computed(
+    () =>
+      this.generateMapLoading() ||
+      !this.mapGenerated() ||
+      this.gameStarted() ||
+      this.mustRegenerateToEnableStart(),
+  );
+
   private readonly xy = allHexScreenXY();
 
   readonly selectedHexId = signal<number | null>(null);
   readonly selectedVertexId = signal<number | null>(null);
   readonly heatmapOn = signal(false);
 
+  /** Screen coordinates for vertex heuristic tooltip (heatmap dots). */
+  private readonly vertexHeatTooltip = signal<{
+    vertexId: number;
+    screenX: number;
+    screenY: number;
+  } | null>(null);
+
+  /** Prod / Res / Num / Scar (one decimal); excludes total. */
+  readonly vertexHeatTooltipView = computed(() => {
+    const t = this.vertexHeatTooltip();
+    if (!t || !this.heatmapOn()) {
+      return null;
+    }
+    const v = this.map().vertices?.find((x) => x.id === t.vertexId);
+    const fmt = (n: number | undefined) => {
+      if (n === undefined || Number.isNaN(Number(n))) {
+        return '—';
+      }
+      return (Math.round(Number(n) * 10) / 10).toFixed(1);
+    };
+    const rows = [
+      { label: 'Prod', value: fmt(v?.vertexProductionValue) },
+      { label: 'Res', value: fmt(v?.resourceDiversityValue) },
+      { label: 'Num', value: fmt(v?.numberDiversityValue) },
+      { label: 'Scar', value: fmt(v?.scarcityValue) },
+    ] as const;
+    const placeBelow = t.screenY < 110;
+    return {
+      screenX: t.screenX,
+      screenY: t.screenY,
+      placeBelow,
+      rows,
+    };
+  });
+
   readonly placementAnalysis = computed(() => analyzePlacement(this.map()));
   readonly resourceOnMap = computed(() => resourceRowsOnMap(this.map()));
 
+  private readonly playersFromBackend = computed(() => {
+    const players = this.map().players ?? [];
+    if (!players.length) {
+      return null;
+    }
+    const seatLabelById: Record<number, '1st' | '2nd' | '3rd'> = {
+      0: '1st',
+      1: '2nd',
+      2: '3rd',
+    };
+    const rows: PlayerHeuristicRow[] = players
+      .map((p) => {
+        const seatLabel = seatLabelById[p.id];
+        if (!seatLabel) {
+          return null;
+        }
+        return {
+          seatLabel,
+          possibility: p.productionScore, // "Prod" column
+          resources: p.diversityScore, // "Div" column
+          scarcity: p.scarcityScore,
+          overall: p.totalScore,
+        };
+      })
+      .filter((r): r is PlayerHeuristicRow => r !== null);
+    return rows.length ? rows : null;
+  });
+
   readonly playersByOverall = computed(() => {
-    const list = [...this.placementAnalysis().players];
+    const list = [...(this.playersFromBackend() ?? this.placementAnalysis().players)];
     list.sort((a, b) => b.overall - a.overall);
+    return list;
+  });
+
+  readonly playersBySeat = computed(() => {
+    const order: Record<'1st' | '2nd' | '3rd', number> = { '1st': 0, '2nd': 1, '3rd': 2 };
+    const list = [...(this.playersFromBackend() ?? this.placementAnalysis().players)];
+    list.sort((a, b) => order[a.seatLabel] - order[b.seatLabel]);
     return list;
   });
 
@@ -70,7 +191,9 @@ export class MapFacadeService {
     }
 
     const mapVertices = this.map().vertices ?? [];
-    const fills = vertexHeatFillByVertexId(BOARD_GRAPH, this.map());
+    const mapRef = this.map();
+    const fills = vertexHeatFillByVertexId(BOARD_GRAPH, mapRef);
+    const grades = vertexHeatGradeByVertexId(BOARD_GRAPH, mapRef);
     if (mapVertices.length > 0) {
       return mapVertices
         .map((v) => {
@@ -81,12 +204,19 @@ export class MapFacadeService {
             x: p.x,
             y: p.y,
             fill: fills.get(v.id) ?? heatOverlayRgbaByPips(1),
+            grade: (grades.get(v.id) ?? 1) as 1 | 2 | 3 | 4 | 5,
             selected: selected === v.id,
             ring: vertexRing.has(v.id),
           };
         })
         .filter((v): v is {
-          id: number; x: number; y: number; fill: string; selected: boolean; ring: boolean
+          id: number;
+          x: number;
+          y: number;
+          fill: string;
+          grade: 1 | 2 | 3 | 4 | 5;
+          selected: boolean;
+          ring: boolean;
         } => v !== null);
     }
     return BOARD_GRAPH.vertexPositions.map((p, id) => ({
@@ -94,6 +224,7 @@ export class MapFacadeService {
       x: p.x,
       y: p.y,
       fill: fills.get(id) ?? heatOverlayRgbaByPips(1),
+      grade: (grades.get(id) ?? 1) as 1 | 2 | 3 | 4 | 5,
       selected: selected === id,
       ring: vertexRing.has(id),
     }));
@@ -149,6 +280,7 @@ export class MapFacadeService {
     const vertexFieldSet = new Set<number>(selectedVertexInfo?.fields ?? []);
 
     const heatmap = this.heatmapOn();
+    const resourceFills = heatmap ? HEX_RESOURCE_FILL_HEATMAP_WASHED : HEX_RESOURCE_PATTERN_FILL;
     return this.map().hexes.map((h) => {
       const number = h.productionNumber;
       const pips = productionPips(number);
@@ -158,7 +290,7 @@ export class MapFacadeService {
         neighbourHexIds: h.neighbourHexIds,
         x: this.xy[h.id]?.x ?? 0,
         y: this.xy[h.id]?.y ?? 0,
-        fill: heatmap ? HEX_FILL_HEATMAP_NEUTRAL : HEX_RESOURCE_PATTERN_FILL[h.resource],
+        fill: resourceFills[h.resource] ?? resourceFills[RESOURCE.Desert],
         resource: h.resource,
         productionNumber: number,
         pips,
@@ -189,21 +321,57 @@ export class MapFacadeService {
     this.selectedVertexId.update((cur) => (cur === id ? null : id));
   }
 
+  onVertexHeatPointerEnter(id: number, ev: PointerEvent): void {
+    if (!this.heatmapOn()) {
+      return;
+    }
+    this.vertexHeatTooltip.set({
+      vertexId: id,
+      screenX: ev.clientX,
+      screenY: ev.clientY,
+    });
+  }
+
+  onVertexHeatPointerMove(id: number, ev: PointerEvent): void {
+    const cur = this.vertexHeatTooltip();
+    if (!cur || cur.vertexId !== id) {
+      return;
+    }
+    this.vertexHeatTooltip.set({
+      vertexId: id,
+      screenX: ev.clientX,
+      screenY: ev.clientY,
+    });
+  }
+
+  onVertexHeatPointerLeave(): void {
+    this.vertexHeatTooltip.set(null);
+  }
+
   toggleHeatmap(): void {
     this.heatmapOn.update((v) => !v);
+    this.vertexHeatTooltip.set(null);
   }
 
   setNowPlayingSeat(seat: NowPlayingSeat): void {
     this.nowPlayingSeat.set(seat);
   }
 
-  generateMap(): Promise<void> {
-    return this.mapData.generateMap();
+  async generateMap(playstyles: readonly PlaystyleId[]): Promise<void> {
+    await this.mapData.generateMap(playstyles);
+    if (!this.mapData.generateMapFailed()) {
+      this.mustRegenerateToEnableStart.set(false);
+    }
   }
 
   startGame(): void {
-    // Hook point for game-start flow (lobby/session) once backend endpoint is ready.
-    console.log('start game');
+    this.gameStarted.set(true);
+  }
+
+  /** Called after the user confirms abort in the sidebar dialog. */
+  confirmAbortGame(): void {
+    this.gameStarted.set(false);
+    this.mustRegenerateToEnableStart.set(true);
   }
 
   onSpotClick(fieldNumber: number, spotNum: number, event: Event): void {

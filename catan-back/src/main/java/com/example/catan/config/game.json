@@ -1,10 +1,10 @@
 {
   "resource": {
-    "LUMBER": 4,
-    "GRAIN": 4,
+    "WOOD": 4,
+    "WHEAT": 4,
     "DESERT": 1,
     "ORE": 3,
-    "WOOL": 4,
+    "SHEEP": 4,
     "BRICK": 3
   },
   "number": {
