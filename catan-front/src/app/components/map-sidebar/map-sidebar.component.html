@@ -6,7 +6,12 @@
     </div>
     <p class="sidebar__tagline">Scores, resources, heatmap</p>
 
-    <div class="sidebar__actions">
+    <div
+      class="sidebar__actions"
+      [class.sidebar__actions--single]="
+        !(!gameStarted && !hasSettlementsOnMap && mapGenerated) && !(gameStarted && placementRevealInProgress)
+      "
+    >
       <button
         type="button"
         class="sidebar__action-btn sidebar__generate"
@@ -15,7 +20,7 @@
       >
         {{ generateMapLoading ? 'Generating…' : 'Generate map' }}
       </button>
-      @if (!gameStarted) {
+      @if (!gameStarted && !hasSettlementsOnMap && mapGenerated) {
         <button
           type="button"
           class="sidebar__action-btn sidebar__start-game"
@@ -24,8 +29,13 @@
         >
           Start game
         </button>
-      } @else {
-        <button type="button" class="sidebar__action-btn sidebar__abort" (click)="openAbortDialog()">
+      }
+      @if (gameStarted && placementRevealInProgress) {
+        <button
+          type="button"
+          class="sidebar__action-btn sidebar__abort"
+          (click)="abortPlacing.emit()"
+        >
           Abort
         </button>
       }
@@ -104,30 +114,7 @@
     </div>
     }
 
-    @if (abortDialogOpen) {
-      <div class="generate-overlay" (click)="closeAbortDialog()">
-        <div
-          class="generate-dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="abort-dialog-title"
-          (click)="$event.stopPropagation()"
-        >
-          <h3 id="abort-dialog-title" class="generate-dialog__title">Abort game?</h3>
-          <p class="generate-dialog__hint">Are you sure? You can generate a new map afterward.</p>
-          <div class="generate-dialog__actions">
-            <button type="button" class="generate-dialog__btn generate-dialog__btn--ghost" (click)="closeAbortDialog()">
-              Cancel
-            </button>
-            <button type="button" class="generate-dialog__btn generate-dialog__btn--danger" (click)="confirmAbort()">
-              Abort
-            </button>
-          </div>
-        </div>
-      </div>
-    }
-
-    @if (gameStarted) {
+    @if (gameStarted && !gameOver) {
     <div class="now-playing" aria-label="Current turn">
       <div class="now-playing__current">
         <span class="now-playing__kicker">Now</span>
@@ -157,6 +144,25 @@
       </div>
     </div>
     }
+
+    @if (gameOver && winnerCaption) {
+    <div class="now-playing" aria-label="Game over">
+      <div class="now-playing__current">
+        <span class="now-playing__kicker">Game over</span>
+        <span
+          class="now-playing__piece"
+          [class.now-playing__piece--white]="winnerCaption.swatch === 'white'"
+          [class.now-playing__piece--blue]="winnerCaption.swatch === 'blue'"
+          [class.now-playing__piece--orange]="winnerCaption.swatch === 'orange'"
+          aria-hidden="true"
+        ></span>
+        <span class="now-playing__name">
+          Winner is {{ winnerCaption.seat }} player
+        </span>
+      </div>
+    </div>
+    }
+
   </header>
 
   <div class="sidebar__body" id="map-analysis-panel">
@@ -169,7 +175,7 @@
           [class.overall-tile--orange]="p.seatLabel === '3rd'"
         >
           <span class="overall-tile__seat">{{ p.seatLabel }}</span>
-          <span class="overall-tile__score">{{ p.overall }}</span>
+          <span class="overall-tile__score">{{ mapGenerated ? p.overall : '-' }}</span>
         </div>
       }
     </section>
@@ -177,18 +183,20 @@
     <section class="panel panel--heatmap">
       <div class="panel__row">
         <span class="panel__label">Heuristic heatmap</span>
-        <button
-          type="button"
-          class="heatmap-switch"
-          role="switch"
-          [attr.aria-checked]="heatmapOn"
-          (click)="heatmapToggle.emit()"
-        >
-          <span class="heatmap-switch__track">
-            <span class="heatmap-switch__thumb"></span>
-          </span>
-          <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
-        </button>
+        @if (mapGenerated) {
+          <button
+            type="button"
+            class="heatmap-switch"
+            role="switch"
+            [attr.aria-checked]="heatmapOn"
+            (click)="heatmapToggle.emit()"
+          >
+            <span class="heatmap-switch__track">
+              <span class="heatmap-switch__thumb"></span>
+            </span>
+            <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
+          </button>
+        }
       </div>
       <p class="panel__hint">Spot grades 1 (worst) to 5 (best) by heuristic</p>
       <div class="heatmap-legend" [class.heatmap-legend--muted]="!heatmapOn" aria-hidden="true">
@@ -228,10 +236,10 @@
                 [class.score-table__row--orange]="p.seatLabel === '3rd'"
               >
                 <th scope="row">{{ p.seatLabel }}</th>
-                <td class="score-table__num">{{ p.possibility }}</td>
-                <td class="score-table__num">{{ p.resources }}</td>
-                <td class="score-table__num">{{ p.scarcity }}</td>
-                <td class="score-table__num score-table__lead">{{ p.overall }}</td>
+                <td class="score-table__num">{{ mapGenerated ? p.possibility : '-' }}</td>
+                <td class="score-table__num">{{ mapGenerated ? p.resources : '-' }}</td>
+                <td class="score-table__num">{{ mapGenerated ? p.scarcity : '-' }}</td>
+                <td class="score-table__num score-table__lead">{{ mapGenerated ? p.overall : '-' }}</td>
               </tr>
             }
           </tbody>
@@ -240,22 +248,30 @@
     </section>
 
     <section class="panel panel--resources" aria-label="Resources on this map">
-      <h3 class="panel__table-title">Production by resource</h3>
+      <h3 class="panel__table-title">On this map</h3>
       <ul class="resource-list">
-        @for (r of resourceOnMap; track r.resource) {
+        @if (mapGenerated) {
+          @for (r of resourceOnMap; track r.resource) {
+            <li class="resource-list__item">
+              <span
+                class="resource-list__swatch"
+                [style.background-color]="r.tileColor"
+                aria-hidden="true"
+              ></span>
+              <div class="resource-list__body">
+                <span class="resource-list__name">{{ r.label }}</span>
+                <span class="resource-list__meta">
+                  {{ r.hexes }} {{ r.hexes === 1 ? 'field' : 'fields' }}
+                  <span class="resource-list__dot" aria-hidden="true">·</span>
+                  {{ r.production }} production
+                </span>
+              </div>
+            </li>
+          }
+        } @else {
           <li class="resource-list__item">
-            <span
-              class="resource-list__swatch"
-              [style.background-color]="r.tileColor"
-              aria-hidden="true"
-            ></span>
             <div class="resource-list__body">
-              <span class="resource-list__name">{{ r.label }}</span>
-              <span class="resource-list__meta">
-                {{ r.hexes }} {{ r.hexes === 1 ? 'field' : 'fields' }}
-                <span class="resource-list__dot" aria-hidden="true">·</span>
-                {{ r.production }} production
-              </span>
+              <span class="resource-list__name">No data</span>
             </div>
           </li>
         }

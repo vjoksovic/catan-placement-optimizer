@@ -4,6 +4,7 @@ import com.example.catan.models.enums.Playstyle;
 import com.example.catan.models.enums.Resource;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
+import com.example.catan.models.map.Vertex;
 import com.example.catan.utils.ConfigLoader;
 import com.example.catan.utils.MapGeneratorUtil;
 import org.springframework.stereotype.Service;

@@ -5,14 +5,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import com.example.catan.models.enums.HeatmapRating;
 import com.example.catan.models.enums.Resource;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
 import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
-import com.example.catan.models.values.Heuristic;
 import com.example.catan.utils.ConfigLoader;
+import com.example.catan.utils.MathUtil;
 
 import org.springframework.stereotype.Service;
 
@@ -21,32 +20,38 @@ public class HeuristicService {
 
   private final MapService mapService;
   private final java.util.Map<String, Double> scarcityMultipliers;
+  private final java.util.Map<String, Double> numberMultipliers;
+  private final MathUtil.HeuristicScalingContext scalingContext;
 
   public HeuristicService(MapService mapService) {
     this.mapService = mapService;
     this.scarcityMultipliers = ConfigLoader.loadScarcityResourceMultipliers();
+    this.numberMultipliers = ConfigLoader.loadNumberMultipliers();
+    java.util.Map<String, Double> maxValues = ConfigLoader.loadHeuristicScalingMaxValues();
+    java.util.Map<String, Double> targetShares = ConfigLoader.loadHeuristicScalingTargetShares();
+    this.scalingContext = MathUtil.buildHeuristicScalingContext(maxValues, targetShares);
   }
   
   public void calculateHeuristic(Map map) {
     for (Vertex vertex : map.getVertices()) {
       calculateVertexHeuristic(map, vertex);
     }
-    assignHeatmapRatings(map);
+    mapService.assignHeatmapRatings(map);
   }
 
-  public void calculateIndividualHeuristic(Map map) {
+  public void processPlayerHeuristics(Map map) {
     for (Player player : map.getPlayers()) {
-      calculateIndividualVertices(map, player);
+      processPlayerVertices(map, player);
     }
   }
 
-  private void calculateIndividualVertices(Map map, Player player) {
+  private void processPlayerVertices(Map map, Player player) {
     for (Vertex vertex : map.getVertices()) {
       double totalValue = vertex.getValue().getProductionValue() * player.getPlaystyle().getProductionWeight()
           + vertex.getValue().getResourceDiversityValue() * player.getPlaystyle().getResourceDiversityWeight()
           + vertex.getValue().getNumberDiversityValue() * player.getPlaystyle().getNumberDiversityWeight()
           + vertex.getValue().getScarcityValue() * player.getPlaystyle().getScarcityWeight();
-      vertex.getValue().setTotalValue(round1(totalValue));
+      vertex.getValue().setOverallValue(MathUtil.round1(totalValue));
     }
   }
 
@@ -56,44 +61,7 @@ public class HeuristicService {
     calculateResourceDiversity(vertex, fields);
     calculateNumberDiversity(vertex, fields);
     calculateScarcity(map, vertex, fields);
-    roundHeuristicToOneDecimal(vertex);
-  }
-
-  /** Round each component and total to one decimal (half-up). */
-  private static void roundHeuristicToOneDecimal(Vertex vertex) {
-    Heuristic h = vertex.getValue();
-    double p = round1(h.getProductionValue());
-    double r = round1(h.getResourceDiversityValue());
-    double n = round1(h.getNumberDiversityValue());
-    double s = round1(h.getScarcityValue());
-    h.setProductionValue(p);
-    h.setResourceDiversityValue(r);
-    h.setNumberDiversityValue(n);
-    h.setScarcityValue(s);
-    h.setTotalValue(round1(p + r + n + s));
-  }
-
-  private static double round1(double x) {
-    return Math.round(x * 10.0) / 10.0;
-  }
-
-  private void assignHeatmapRatings(Map map) {
-    List<Vertex> vertices = map.getVertices();
-    if (vertices == null || vertices.isEmpty()) {
-      return;
-    }
-    double minTotal = Double.POSITIVE_INFINITY;
-    double maxTotal = Double.NEGATIVE_INFINITY;
-    for (Vertex v : vertices) {
-      double t = v.getValue().getTotalValue();
-      minTotal = Math.min(minTotal, t);
-      maxTotal = Math.max(maxTotal, t);
-    }
-    double[] heatmapCaps = ConfigLoader.loadHeatmapRatingCaps();
-    for (Vertex v : vertices) {
-      double totalValue = v.getValue().getTotalValue();
-      v.setHeatmapRating(HeatmapRating.fromBoardTotals(totalValue, minTotal, maxTotal, heatmapCaps));
-    }
+    MathUtil.roundHeuristicToOneDecimal(vertex.getValue(), scalingContext);
   }
 
   private void calculateProduction(Vertex vertex, List<Field> fields) {
@@ -110,22 +78,27 @@ public class HeuristicService {
 
   private void calculateResourceDiversity(Vertex vertex, List<Field> fields) {
     Set<Resource> resources = new HashSet<>();
+    double resourceDiversityValue = 0;
     for (Field field : fields) {
-      resources.add(field.getResource());
+      if (field.getResource() == Resource.DESERT) continue;
+      if (resources.add(field.getResource())) 
+        resourceDiversityValue += field.getResource().getWeight();
     }
-    vertex.getValue().setResourceDiversityValue(resources.size());
+    vertex.getValue().setResourceDiversityValue(resourceDiversityValue);
   }
 
   private void calculateNumberDiversity(Vertex vertex, List<Field> fields) {
     Set<Integer> numbers = new HashSet<>();
     double numberDiversityValue = 0;
     for (Field field : fields) {
+      if (field.getResource() == Resource.DESERT) continue;
+      double numberMultiplier = MathUtil.resolveNumberMultiplier(numberMultipliers, field.getFieldNumber());
       if (numbers.contains(field.getFieldNumber())) {
-        double penalty = 20 * calulateFieldProductionValue(field) / 100;
+        double penalty = MathUtil.duplicateNumberPenalty(calulateFieldProductionValue(field), numberMultiplier);
         numberDiversityValue -= penalty;
       } else {
         numbers.add(field.getFieldNumber());
-        numberDiversityValue++;
+        numberDiversityValue += numberMultiplier;
       }
     }
     vertex.getValue().setNumberDiversityValue(numberDiversityValue);
@@ -133,15 +106,14 @@ public class HeuristicService {
 
   private void calculateScarcity(Map map, Vertex vertex, List<Field> fields) {
     double scarcityValue = 0;
-    double maxProduction = mapService.calculateMaxProduction(map);
+    double maxProduction = mapService.getMaxProduction(map);
     for (Field field : fields) {
-      double points = maxProduction / map.getProduction().get(field.getResource()) * field.getProductionValue();
-      Double mult = scarcityMultipliers.get(field.getResource().name());
-      if (mult != null) {
-        points *= mult;
+      int minProduction = mapService.getMinProduction(map, field);
+      if (minProduction > 0) {
+        scarcityValue = MathUtil.round1(maxProduction / minProduction) * scarcityMultipliers.get(field.getResource().name());
+        vertex.getValue().setScarcityValue(scarcityValue);
+        return;
       }
-      scarcityValue += points;
     }
-    vertex.getValue().setScarcityValue(scarcityValue / fields.size());
   }
 }

@@ -22,8 +22,17 @@ import {
 import type { PlayerHeuristicRow } from '../../models/map.interface';
 
 const BOARD_GRAPH = buildBoardGraph();
+const NEUTRAL_FIELD_FILL = 'rgba(88, 106, 118, 0.55)';
+const UI_SESSION_STORAGE_KEY = 'catan.session.ui.v1';
+
+type PersistedUiState = {
+  nowPlayingSeat: NowPlayingSeat;
+  heatmapOn: boolean;
+  gameStarted: boolean;
+};
 
 export type NowPlayingSeat = '1st' | '2nd' | '3rd';
+const TURN_ORDER_TO_SEAT: readonly NowPlayingSeat[] = ['1st', '2nd', '3rd', '3rd', '2nd', '1st'];
 
 @Injectable({ providedIn: 'root' })
 export class MapFacadeService {
@@ -35,26 +44,18 @@ export class MapFacadeService {
   /** True after the user starts a session from this UI (until abort or full reload). */
   readonly gameStarted = signal(false);
 
-  /** After abort, "Start game" stays off until a successful generate. */
-  private readonly mustRegenerateToEnableStart = signal(false);
-
-  /** Seat whose `isPlaying` is true on the API map, when present. */
-  readonly nowPlayingFromBackend = computed((): NowPlayingSeat | null => {
-    const players = this.map().players;
-    if (!players?.length) {
+  /** Active seat computed from current frontend turn number (0..5). */
+  readonly nowPlayingFromTurn = computed((): NowPlayingSeat | null => {
+    const turn = this.mapData.activeTurnNumber();
+    if (turn === null || turn < 0 || turn >= TURN_ORDER_TO_SEAT.length) {
       return null;
     }
-    const active = players.find((p) => p.isPlaying);
-    if (!active) {
-      return null;
-    }
-    const byId: Record<number, NowPlayingSeat> = { 0: '1st', 1: '2nd', 2: '3rd' };
-    return byId[active.id] ?? null;
+    return TURN_ORDER_TO_SEAT[turn] ?? null;
   });
 
-  /** UI seat: backend `isPlaying` when set, otherwise local selection (static map). */
+  /** UI seat: frontend turn-derived seat when available, otherwise local selection. */
   readonly nowPlayingSeatEffective = computed(
-    () => this.nowPlayingFromBackend() ?? this.nowPlayingSeat(),
+    () => this.nowPlayingFromTurn() ?? this.nowPlayingSeat(),
   );
 
   /**
@@ -62,7 +63,7 @@ export class MapFacadeService {
    * Before start, the now-playing block is hidden so this does not apply.
    */
   readonly nowPlayingSeatChoiceLocked = computed(
-    () => this.gameStarted() && this.nowPlayingFromBackend() !== null,
+    () => this.gameStarted() && this.nowPlayingFromTurn() !== null,
   );
 
   readonly nowPlayingCaption = computed(() => {
@@ -78,21 +79,23 @@ export class MapFacadeService {
 
   readonly map = this.mapData.map;
   readonly playerPieces = this.mapData.playerPieces;
+  readonly hasSettlementsOnMap = computed(() => this.playerPieces().settlements.length > 0);
+  readonly placementRevealInProgress = this.mapData.placementRevealInProgress;
+  readonly gameOver = this.mapData.gameOver;
   readonly generateMapLoading = this.mapData.generateMapLoading.asReadonly();
   readonly generateMapFailed = this.mapData.generateMapFailed.asReadonly();
   readonly mapGenerated = this.mapData.mapGenerated;
 
-  /** Disabled only while generating or after "Start game" (session active). */
+  /** Disabled only while generating. */
   readonly generateMapDisabled = computed(
-    () => this.generateMapLoading() || this.gameStarted(),
+    () => this.generateMapLoading(),
   );
 
   readonly startGameDisabled = computed(
     () =>
       this.generateMapLoading() ||
       !this.mapGenerated() ||
-      this.gameStarted() ||
-      this.mustRegenerateToEnableStart(),
+      this.gameStarted(),
   );
 
   private readonly xy = allHexScreenXY();
@@ -108,7 +111,11 @@ export class MapFacadeService {
     screenY: number;
   } | null>(null);
 
-  /** Prod / Res / Num / Scar (one decimal); excludes total. */
+  constructor() {
+    this.restoreUiFromSession();
+  }
+
+  /** Prod / Res / Num / Scar + Overall (one decimal). */
   readonly vertexHeatTooltipView = computed(() => {
     const t = this.vertexHeatTooltip();
     if (!t || !this.heatmapOn()) {
@@ -122,10 +129,11 @@ export class MapFacadeService {
       return (Math.round(Number(n) * 10) / 10).toFixed(1);
     };
     const rows = [
-      { label: 'Prod', value: fmt(v?.vertexProductionValue) },
-      { label: 'Res', value: fmt(v?.resourceDiversityValue) },
-      { label: 'Num', value: fmt(v?.numberDiversityValue) },
-      { label: 'Scar', value: fmt(v?.scarcityValue) },
+      { label: 'Prod', value: fmt(v?.vertexProductionValue), highlighted: false },
+      { label: 'Res', value: fmt(v?.resourceDiversityValue), highlighted: false },
+      { label: 'Num', value: fmt(v?.numberDiversityValue), highlighted: false },
+      { label: 'Scar', value: fmt(v?.scarcityValue), highlighted: false },
+      { label: 'Overall', value: fmt(v?.overallValue), highlighted: true },
     ] as const;
     const placeBelow = t.screenY < 110;
     return {
@@ -173,6 +181,20 @@ export class MapFacadeService {
     return list;
   });
 
+  readonly winnerCaption = computed(() => {
+    const winner = this.playersByOverall()[0];
+    if (!winner) {
+      return null;
+    }
+    if (winner.seatLabel === '1st') {
+      return { seat: '1st', colorLabel: 'White', swatch: 'white' as const };
+    }
+    if (winner.seatLabel === '2nd') {
+      return { seat: '2nd', colorLabel: 'Blue', swatch: 'blue' as const };
+    }
+    return { seat: '3rd', colorLabel: 'Orange', swatch: 'orange' as const };
+  });
+
   readonly playersBySeat = computed(() => {
     const order: Record<'1st' | '2nd' | '3rd', number> = { '1st': 0, '2nd': 1, '3rd': 2 };
     const list = [...(this.playersFromBackend() ?? this.placementAnalysis().players)];
@@ -184,6 +206,10 @@ export class MapFacadeService {
   readonly heatmapVertexMarkers = computed(() => {
     const selected = this.selectedVertexId();
     const selectedInfo = this.vertexLookup().get(selected ?? -1) ?? null;
+    const occupiedVertices = new Set<number>();
+    for (const p of this.playerPieces().settlements) {
+      occupiedVertices.add(p.vertexId);
+    }
     const vertexRing = new Set<number>();
     if (selectedInfo) {
       vertexRing.add(selectedInfo.id);
@@ -207,6 +233,7 @@ export class MapFacadeService {
             grade: (grades.get(v.id) ?? 1) as 1 | 2 | 3 | 4 | 5,
             selected: selected === v.id,
             ring: vertexRing.has(v.id),
+            occupied: occupiedVertices.has(v.id),
           };
         })
         .filter((v): v is {
@@ -217,6 +244,7 @@ export class MapFacadeService {
           grade: 1 | 2 | 3 | 4 | 5;
           selected: boolean;
           ring: boolean;
+          occupied: boolean;
         } => v !== null);
     }
     return BOARD_GRAPH.vertexPositions.map((p, id) => ({
@@ -227,6 +255,7 @@ export class MapFacadeService {
       grade: (grades.get(id) ?? 1) as 1 | 2 | 3 | 4 | 5,
       selected: selected === id,
       ring: vertexRing.has(id),
+      occupied: occupiedVertices.has(id),
     }));
   });
 
@@ -280,6 +309,7 @@ export class MapFacadeService {
     const vertexFieldSet = new Set<number>(selectedVertexInfo?.fields ?? []);
 
     const heatmap = this.heatmapOn();
+    const generated = this.mapGenerated();
     const resourceFills = heatmap ? HEX_RESOURCE_FILL_HEATMAP_WASHED : HEX_RESOURCE_PATTERN_FILL;
     return this.map().hexes.map((h) => {
       const number = h.productionNumber;
@@ -290,9 +320,10 @@ export class MapFacadeService {
         neighbourHexIds: h.neighbourHexIds,
         x: this.xy[h.id]?.x ?? 0,
         y: this.xy[h.id]?.y ?? 0,
-        fill: resourceFills[h.resource] ?? resourceFills[RESOURCE.Desert],
+        fill: generated ? (resourceFills[h.resource] ?? resourceFills[RESOURCE.Desert]) : NEUTRAL_FIELD_FILL,
         resource: h.resource,
         productionNumber: number,
+        showToken: !(generated && h.resource === RESOURCE.Desert && number === null),
         pips,
         tokenHot: number === 6 || number === 8,
         lit: lit.has(h.id),
@@ -351,27 +382,34 @@ export class MapFacadeService {
   toggleHeatmap(): void {
     this.heatmapOn.update((v) => !v);
     this.vertexHeatTooltip.set(null);
+    this.persistUiToSession();
   }
 
   setNowPlayingSeat(seat: NowPlayingSeat): void {
     this.nowPlayingSeat.set(seat);
+    this.persistUiToSession();
   }
 
   async generateMap(playstyles: readonly PlaystyleId[]): Promise<void> {
     await this.mapData.generateMap(playstyles);
     if (!this.mapData.generateMapFailed()) {
-      this.mustRegenerateToEnableStart.set(false);
+      this.gameStarted.set(false);
+      this.persistUiToSession();
     }
   }
 
-  startGame(): void {
-    this.gameStarted.set(true);
+  async startGame(): Promise<void> {
+    await this.mapData.startGame();
+    if (!this.mapData.generateMapFailed()) {
+      this.gameStarted.set(true);
+      this.persistUiToSession();
+    }
   }
 
-  /** Called after the user confirms abort in the sidebar dialog. */
-  confirmAbortGame(): void {
+  abortPlacing(): void {
+    this.mapData.abortPlacementReveal();
     this.gameStarted.set(false);
-    this.mustRegenerateToEnableStart.set(true);
+    this.persistUiToSession();
   }
 
   onSpotClick(fieldNumber: number, spotNum: number, event: Event): void {
@@ -382,5 +420,41 @@ export class MapFacadeService {
   onEdgeClick(fieldNumber: number, edgeNum: number, event: Event): void {
     event.stopPropagation();
     console.log('edge click', { field: fieldNumber, edge: edgeNum });
+  }
+
+  private restoreUiFromSession(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const raw = window.sessionStorage.getItem(UI_SESSION_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<PersistedUiState>;
+      if (parsed.nowPlayingSeat === '1st' || parsed.nowPlayingSeat === '2nd' || parsed.nowPlayingSeat === '3rd') {
+        this.nowPlayingSeat.set(parsed.nowPlayingSeat);
+      }
+      this.heatmapOn.set(Boolean(parsed.heatmapOn));
+      this.gameStarted.set(Boolean(parsed.gameStarted));
+    } catch {
+      // Ignore invalid persisted UI state.
+    }
+  }
+
+  private persistUiToSession(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const payload: PersistedUiState = {
+      nowPlayingSeat: this.nowPlayingSeat(),
+      heatmapOn: this.heatmapOn(),
+      gameStarted: this.gameStarted(),
+    };
+    try {
+      window.sessionStorage.setItem(UI_SESSION_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore storage restrictions.
+    }
   }
 }

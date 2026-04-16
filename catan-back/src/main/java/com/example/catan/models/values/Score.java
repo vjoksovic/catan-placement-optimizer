@@ -1,20 +1,29 @@
 package com.example.catan.models.values;
 
+import com.example.catan.utils.MathUtil;
+
 import lombok.Getter;
 import lombok.Setter;
 
 @Getter
 @Setter
 public class Score {
-  private int productionScore;
-  private int diversityScore;
-  private int scarcityScore;
-  private int totalScore;
+  private double productionScore;
+  private double diversityScore;
+  private double scarcityScore;
+  private double totalScore;
 
   public Score() {
     this.productionScore = 0;
     this.diversityScore = 0;
     this.scarcityScore = 0;
     this.totalScore = 0;
+  }
+
+  public void setValues(double productionValue, double resourceDiversityValue, double numberDiversityValue, double scarcityValue) {
+    this.productionScore += MathUtil.round1(productionValue);
+    this.diversityScore += MathUtil.round1((resourceDiversityValue + numberDiversityValue) / 2);
+    this.scarcityScore += MathUtil.round1(scarcityValue);
+    this.totalScore = MathUtil.round1(this.productionScore + this.diversityScore + this.scarcityScore);
   }
 }

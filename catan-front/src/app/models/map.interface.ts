@@ -18,6 +18,8 @@ export interface BoardVertexData {
   readonly id: number;
   readonly fields: readonly number[];
   readonly neighbours: readonly number[];
+  /** From API vertex road flags: adjacent vertex id -> road exists on edge. */
+  readonly neighbourRoadFlags?: Readonly<Record<number, boolean>>;
   /** Present when returned from the Java API (vertex heuristics). */
   readonly isAccessible?: boolean;
   readonly heuristicValue?: number;
@@ -26,6 +28,10 @@ export interface BoardVertexData {
   readonly resourceDiversityValue?: number;
   readonly numberDiversityValue?: number;
   readonly scarcityValue?: number;
+  readonly balancedValue?: number;
+  readonly productionFocusedValue?: number;
+  readonly scarcityFocusedValue?: number;
+  readonly overallValue?: number;
   readonly heatmapRating?: HeatmapRating;
 }
 

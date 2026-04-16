@@ -4,6 +4,7 @@ import type {
   GameBoardFieldDto,
   GameBoardPlayerDto,
   GameBoardVertexDto,
+  VertexRoadFlagsDto,
   VertexNeighboursDto,
 } from './board-api.dto';
 import { RESOURCE } from './map.const';
@@ -101,33 +102,39 @@ function mapField(f: GameBoardFieldDto): HexField {
 }
 
 /**
- * Backend may send adjacency as {@code number[]} or as a map of vertexId → boolean (flags ignored here;
- * graph edges use keys only). Roads are taken only from {@link GameBoardPlayerDto.roads}.
+ * Backend may send adjacency as {@code number[]} or as a map of vertexId → boolean.
+ * Keys are always used as graph adjacency ids.
  */
-function vertexNeighbourIds(neighbours: VertexNeighboursDto | undefined): number[] {
-  if (neighbours === undefined || neighbours === null) {
-    return [];
-  }
+function vertexNeighbourIds(
+  neighbours: VertexNeighboursDto | undefined,
+  roadFlags: VertexRoadFlagsDto | undefined,
+): number[] {
   if (Array.isArray(neighbours)) {
     return neighbours.map((n) => Number(n));
   }
-  return Object.keys(neighbours)
+  const source = neighbours && !Array.isArray(neighbours) ? neighbours : roadFlags;
+  if (!source) {
+    return [];
+  }
+  return Object.keys(source)
     .map((k) => Number(k))
     .filter((n) => !Number.isNaN(n))
     .sort((a, b) => a - b);
 }
 
 function neighbourRoadFlagsFromDto(
+  roadFlags: VertexRoadFlagsDto | undefined,
   neighbours: VertexNeighboursDto | undefined,
 ): Readonly<Record<number, boolean>> | undefined {
-  if (neighbours === undefined || neighbours === null || Array.isArray(neighbours)) {
+  const source = roadFlags ?? (neighbours && !Array.isArray(neighbours) ? neighbours : undefined);
+  if (!source) {
     return undefined;
   }
   const out: Record<number, boolean> = {};
-  for (const [k, v] of Object.entries(neighbours)) {
+  for (const [k, v] of Object.entries(source)) {
     const id = Number(k);
     if (!Number.isNaN(id)) {
-      out[id] = Boolean(v);
+      out[id] = v;
     }
   }
   return Object.keys(out).length ? out : undefined;
@@ -176,23 +183,33 @@ function roadPairsFromPlayer(p: GameBoardPlayerDto): [number, number][] | undefi
 }
 
 function mapVertex(v: GameBoardVertexDto): BoardVertexData {
+  const neighbourRoadFlags = neighbourRoadFlagsFromDto(v.roadFlags, v.neighbours);
   const base: BoardVertexData = {
     id: v.id,
     fields: [...(v.fields ?? [])],
-    neighbours: vertexNeighbourIds(v.neighbours),
+    neighbours: vertexNeighbourIds(v.neighbours, v.roadFlags),
+    ...(neighbourRoadFlags ? { neighbourRoadFlags } : {}),
   };
   const val = v.value;
   const production = v.productionValue ?? val?.productionValue;
   const resDiv = v.resourceDiversityValue ?? val?.resourceDiversityValue;
   const numDiv = v.numberDiversityValue ?? val?.numberDiversityValue;
   const scarcity = v.scarcityValue ?? val?.scarcityValue;
+  const balanced = val?.balancedValue;
+  const productionFocused = val?.productionFocusedValue;
+  const scarcityFocused = val?.scarcityFocusedValue;
+  const overall = val?.overallValue ?? val?.totalValue;
   const hasHeuristic =
     v.isAccessible !== undefined
     || v.heuristicValue !== undefined
     || production !== undefined
     || resDiv !== undefined
     || numDiv !== undefined
-    || scarcity !== undefined;
+    || scarcity !== undefined
+    || balanced !== undefined
+    || productionFocused !== undefined
+    || scarcityFocused !== undefined
+    || overall !== undefined;
   if (!hasHeuristic) {
     return base;
   }
@@ -204,6 +221,10 @@ function mapVertex(v: GameBoardVertexDto): BoardVertexData {
     resourceDiversityValue: resDiv,
     numberDiversityValue: numDiv,
     scarcityValue: scarcity,
+    balancedValue: balanced,
+    productionFocusedValue: productionFocused,
+    scarcityFocusedValue: scarcityFocused,
+    overallValue: overall,
     heatmapRating: v.heatmapRating,
   };
 }

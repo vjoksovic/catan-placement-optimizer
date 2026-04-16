@@ -10,20 +10,42 @@ import {
 import { MapApiService } from './map-api.service';
 import type { PlaystyleId } from '../../models/playstyle';
 
+const MAP_SESSION_STORAGE_KEY = 'catan.session.mapData.v1';
+
+type PersistedMapData = {
+  map: CatanMap;
+  mapGenerated: boolean;
+  activeTurnNumber: number | null;
+  gameOver: boolean;
+};
+
 @Injectable({ providedIn: 'root' })
 export class MapDataService {
-  private static readonly GENERATED_MAP_STORAGE_KEY = 'catan.generated.map';
   private readonly mapApi = inject(MapApiService);
   private readonly hasGeneratedMap = signal(false);
-  private readonly mapState = signal<CatanMap>(this.loadInitialMap());
+  private readonly mapState = signal<CatanMap>(createStaticCatanMap());
   readonly map = this.mapState.asReadonly();
   /** True after a successful API generate or when a saved generated map was restored. */
   readonly mapGenerated = this.hasGeneratedMap.asReadonly();
   readonly generateMapLoading = signal(false);
   readonly generateMapFailed = signal(false);
+  private nextTurnTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly placementRevealInProgressState = signal(false);
+  readonly placementRevealInProgress = this.placementRevealInProgressState.asReadonly();
+  private readonly activeTurnNumberState = signal<number | null>(null);
+  readonly activeTurnNumber = this.activeTurnNumberState.asReadonly();
+  private readonly gameOverState = signal(false);
+  readonly gameOver = this.gameOverState.asReadonly();
   readonly playerPieces = computed(() => this.createPlayerPieces(this.mapState()));
 
+  constructor() {
+    this.restoreFromSession();
+  }
+
   async generateMap(playstyles: readonly PlaystyleId[]): Promise<void> {
+    this.stopTurnLoop();
+    this.activeTurnNumberState.set(null);
+    this.gameOverState.set(false);
     this.generateMapLoading.set(true);
     this.generateMapFailed.set(false);
     try {
@@ -31,8 +53,7 @@ export class MapDataService {
       const generatedMap = boardDtoToCatanMap(dto);
       this.mapState.set(generatedMap);
       this.hasGeneratedMap.set(true);
-      this.clearSavedGeneratedMap();
-      this.saveGeneratedMap(generatedMap);
+      this.persistToSession();
     } catch {
       this.generateMapFailed.set(true);
     } finally {
@@ -40,46 +61,16 @@ export class MapDataService {
     }
   }
 
-  private loadInitialMap(): CatanMap {
-    const savedMap = this.loadSavedGeneratedMap();
-    if (savedMap) {
-      this.hasGeneratedMap.set(true);
-      return savedMap;
-    }
-    this.hasGeneratedMap.set(false);
-    return createStaticCatanMap();
+  async startGame(): Promise<void> {
+    this.stopTurnLoop();
+    this.generateMapFailed.set(false);
+    this.placementRevealInProgressState.set(true);
+    this.gameOverState.set(false);
+    await this.playTurnAndSchedule(0);
   }
 
-  private saveGeneratedMap(map: CatanMap): void {
-    const storage = this.getBrowserStorage();
-    if (!storage) return;
-    storage.setItem(MapDataService.GENERATED_MAP_STORAGE_KEY, JSON.stringify(map));
-  }
-
-  private loadSavedGeneratedMap(): CatanMap | null {
-    const storage = this.getBrowserStorage();
-    if (!storage) return null;
-    const raw = storage.getItem(MapDataService.GENERATED_MAP_STORAGE_KEY);
-    if (!raw) return null;
-    try {
-      return normalizeCatanMapResources(JSON.parse(raw) as CatanMap);
-    } catch {
-      storage.removeItem(MapDataService.GENERATED_MAP_STORAGE_KEY);
-      return null;
-    }
-  }
-
-  private clearSavedGeneratedMap(): void {
-    const storage = this.getBrowserStorage();
-    if (!storage) return;
-    storage.removeItem(MapDataService.GENERATED_MAP_STORAGE_KEY);
-  }
-
-  private getBrowserStorage(): Storage | null {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-    return window.localStorage;
+  abortPlacementReveal(): void {
+    this.stopTurnLoop();
   }
 
   private createPlayerPieces(map: CatanMap) {
@@ -89,6 +80,80 @@ export class MapDataService {
       return fromApi;
     }
     return { settlements: [], roads: [] };
+  }
+
+  private async playTurnAndSchedule(turnNumber: number): Promise<void> {
+    try {
+      this.activeTurnNumberState.set(turnNumber);
+      const dto = await firstValueFrom(this.mapApi.playTurn(turnNumber));
+      const nextMap = boardDtoToCatanMap(dto.map);
+      this.mapState.set(nextMap);
+      this.hasGeneratedMap.set(true);
+      this.persistToSession();
+      if (dto.nextTurnNumber === null) {
+        this.gameOverState.set(true);
+        this.stopTurnLoop();
+        return;
+      }
+      this.nextTurnTimer = setTimeout(() => {
+        void this.playTurnAndSchedule(dto.nextTurnNumber as number);
+      }, 2000);
+    } catch {
+      this.generateMapFailed.set(true);
+      this.stopTurnLoop();
+    }
+  }
+
+  private stopTurnLoop(): void {
+    if (this.nextTurnTimer !== null) {
+      clearTimeout(this.nextTurnTimer);
+      this.nextTurnTimer = null;
+    }
+    this.placementRevealInProgressState.set(false);
+    this.persistToSession();
+  }
+
+  private restoreFromSession(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const raw = window.sessionStorage.getItem(MAP_SESSION_STORAGE_KEY);
+      if (!raw) {
+        return;
+      }
+      const parsed = JSON.parse(raw) as Partial<PersistedMapData>;
+      if (!parsed || typeof parsed !== 'object' || !parsed.map) {
+        return;
+      }
+      const restoredMap = normalizeCatanMapResources(parsed.map as CatanMap);
+      this.mapState.set(restoredMap);
+      this.hasGeneratedMap.set(Boolean(parsed.mapGenerated));
+      const turn = typeof parsed.activeTurnNumber === 'number' ? parsed.activeTurnNumber : null;
+      this.activeTurnNumberState.set(turn);
+      this.gameOverState.set(Boolean(parsed.gameOver));
+      // Timers cannot survive browser reloads.
+      this.placementRevealInProgressState.set(false);
+    } catch {
+      // Ignore invalid session payloads.
+    }
+  }
+
+  private persistToSession(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const payload: PersistedMapData = {
+      map: this.mapState(),
+      mapGenerated: this.hasGeneratedMap(),
+      activeTurnNumber: this.activeTurnNumberState(),
+      gameOver: this.gameOverState(),
+    };
+    try {
+      window.sessionStorage.setItem(MAP_SESSION_STORAGE_KEY, JSON.stringify(payload));
+    } catch {
+      // Ignore storage quota/session restrictions.
+    }
   }
 }
 

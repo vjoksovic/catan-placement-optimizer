@@ -1,5 +1,5 @@
 {
-  "heatmapRatingCaps": [0.15, 0.4, 0.6, 0.85],
+  "heatmapRatingCaps": [0.25, 0.45, 0.65, 0.85],
   "resourceWeights": {
     "WOOD": 1.0,
     "BRICK": 1.0,
@@ -15,6 +15,33 @@
     "WHEAT": 1.25,
     "ORE": 1.25,
     "DESERT": 0.0
+  },
+  "numberMultipliers": {
+    "2": 0.5,
+    "3": 0.75,
+    "4": 1.0,
+    "5": 1.2,
+    "6": 1.35,
+    "7": 0.0,
+    "8": 1.35,
+    "9": 1.2,
+    "10": 1.0,
+    "11": 0.75,
+    "12": 0.5
+  },
+  "heuristicScaling": {
+    "maxValues": {
+      "production": 15.5,
+      "resourceDiversity": 3.0,
+      "numberDiversity": 3.0,
+      "scarcity": 10.7
+    },
+    "targetShares": {
+      "production": 7.0,
+      "resourceDiversity": 2.0,
+      "numberDiversity": 2.0,
+      "scarcity": 2.0
+    }
   },
   "playstyleWeights": {
     "BALANCED": {

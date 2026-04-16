@@ -13,6 +13,7 @@ export interface GameBoardFieldDto {
 }
 
 export type VertexNeighboursDto = number[] | Record<string, boolean>;
+export type VertexRoadFlagsDto = Record<string, boolean>;
 
 /** Jackson serializes {@code Vertex.value} ({@code Heuristic}) as this object. */
 export interface GameBoardVertexHeuristicDto {
@@ -20,13 +21,21 @@ export interface GameBoardVertexHeuristicDto {
   resourceDiversityValue?: number;
   numberDiversityValue?: number;
   scarcityValue?: number;
+  balancedValue?: number;
+  productionFocusedValue?: number;
+  scarcityFocusedValue?: number;
+  overallValue?: number;
+  /** Legacy name kept for backward compatibility. */
   totalValue?: number;
 }
 
 export interface GameBoardVertexDto {
   id: number;
   fields: number[];
-  neighbours: VertexNeighboursDto;
+  /** Legacy adjacency payload (array or map). */
+  neighbours?: VertexNeighboursDto;
+  /** Preferred payload: adjacent vertex id -> road exists on edge. */
+  roadFlags?: VertexRoadFlagsDto;
   /** Nested heuristic payload from Java {@code Vertex.value}. */
   value?: GameBoardVertexHeuristicDto;
   heatmapRating?: 'VERY_LOW' | 'LOW' | 'MEDIUM' | 'HIGH' | 'VERY_HIGH';
@@ -70,4 +79,9 @@ export interface GameBoardDto {
   players?: GameBoardPlayerDto[];
   /** Resource production totals (enum name -> production sum). */
   production?: Record<string, number>;
+}
+
+export interface GameTurnResponseDto {
+  map: GameBoardDto;
+  nextTurnNumber: number | null;
 }

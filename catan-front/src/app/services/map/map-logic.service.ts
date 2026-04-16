@@ -4,8 +4,6 @@ import {
   HEX_NEIGHBOURS,
   RESOURCE,
   RESOURCE_TILE_COLOR,
-  STATIC_PRODUCTION_BY_HEX,
-  STATIC_RESOURCE_BY_HEX,
 } from '../../models/map.const';
 import type {
   BoardGraph,
@@ -77,11 +75,11 @@ export function createStaticCatanMap(): CatanMap {
   const graph = buildBoardGraph();
   const hexes: HexField[] = HEX_IDS.map((id) => ({
     id,
-    fieldNumber: id,
-    resource: STATIC_RESOURCE_BY_HEX[id] ?? RESOURCE.Desert,
+    fieldNumber: 0,
+    resource: RESOURCE.Desert,
     neighbourHexIds: [...(HEX_NEIGHBOURS[id] ?? [])],
-    productionNumber: STATIC_PRODUCTION_BY_HEX[id] ?? null,
-    productionValue: productionPips(STATIC_PRODUCTION_BY_HEX[id] ?? null),
+    productionNumber: null,
+    productionValue: 0,
     vertexIds: [...(graph.hexCornerVertexIds[id] ?? [])],
   }));
   const vertices = graph.vertexPositions.map((_, id) => ({
@@ -420,6 +418,16 @@ export function buildBoardGraph(): BoardGraph {
  * {@link MapPlayerData.settlementVertexIds} and {@link MapPlayerData.roads} — not from vertex neighbour flags.
  */
 export function piecesFromApiMap(map: CatanMap, g: BoardGraph): RandomPlayerPieces | null {
+  return piecesFromApiMapWithLimit(map, g);
+}
+
+const PLACEMENT_ORDER: readonly PieceSeat[] = [0, 1, 2, 2, 1, 0];
+
+export function piecesFromApiMapWithLimit(
+  map: CatanMap,
+  g: BoardGraph,
+  maxPlacements?: number,
+): RandomPlayerPieces | null {
   const players = map.players;
   if (!players?.length) {
     return null;
@@ -443,37 +451,88 @@ export function piecesFromApiMap(map: CatanMap, g: BoardGraph): RandomPlayerPiec
   };
   const settlements: SettlementView[] = [];
   const roads: RoadView[] = [];
-  for (const p of players) {
-    const ids = p.settlementVertexIds;
-    if (!ids?.length) {
+  const roadKeys = new Set<string>(roads.map((r) => `${Math.min(r.v1, r.v2)}-${Math.max(r.v1, r.v2)}`));
+  const vertexById = new Map((map.vertices ?? []).map((v) => [v.id, v] as const));
+  const visiblePlacements = orderedVisiblePlacements(players, maxPlacements);
+  for (const placement of visiblePlacements) {
+    const seat = placement.seat;
+    const vid = placement.vertexId;
+    const pos = g.vertexPositions[vid];
+    if (!pos) {
       continue;
     }
-    const seat = p.id as PieceSeat;
-    if (seat < 0 || seat > 2) {
+    settlements.push({ seat, vertexId: vid, x: pos.x, y: pos.y });
+    const neighbour = roadNeighbourForVertex(vid, vertexById);
+    if (neighbour === null) {
       continue;
     }
-    for (const vid of ids) {
-      const pos = g.vertexPositions[vid];
-      if (!pos) {
-        continue;
-      }
-      settlements.push({ seat, vertexId: vid, x: pos.x, y: pos.y });
+    const v1 = Math.min(vid, neighbour);
+    const v2 = Math.max(vid, neighbour);
+    const roadKey = `${v1}-${v2}`;
+    if (roadKeys.has(roadKey)) {
+      continue;
     }
-    for (const pair of p.roads ?? []) {
-      const v1 = pair[0];
-      const v2 = pair[1];
-      const pt1 = g.vertexPositions[v1];
-      const pt2 = g.vertexPositions[v2];
-      if (!pt1 || !pt2) {
-        continue;
-      }
-      const seg = shorten(pt1.x, pt1.y, pt2.x, pt2.y);
-      roads.push({ seat, v1, v2, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+    const pt1 = g.vertexPositions[v1];
+    const pt2 = g.vertexPositions[v2];
+    if (!pt1 || !pt2) {
+      continue;
     }
+    const seg = shorten(pt1.x, pt1.y, pt2.x, pt2.y);
+    roads.push({ seat, v1, v2, x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 });
+    roadKeys.add(roadKey);
   }
-  if (!settlements.length) {
+  if (!settlements.length && !roads.length) {
     return null;
   }
   return { settlements, roads };
+}
+
+function roadNeighbourForVertex(
+  vertexId: number,
+  vertexById: ReadonlyMap<number, { neighbourRoadFlags?: Readonly<Record<number, boolean>> }>,
+): number | null {
+  const vertex = vertexById.get(vertexId);
+  const flags = vertex?.neighbourRoadFlags;
+  if (!flags) {
+    return null;
+  }
+  for (const [nKey, hasRoad] of Object.entries(flags)) {
+    if (hasRoad !== true) {
+      continue;
+    }
+    const n = Number(nKey);
+    if (!Number.isNaN(n)) {
+      return n;
+    }
+  }
+  return null;
+}
+
+function orderedVisiblePlacements(
+  players: readonly { id: number; settlementVertexIds?: readonly number[] }[],
+  maxPlacements?: number,
+): ReadonlyArray<{ seat: PieceSeat; vertexId: number }> {
+  const bySeat: Record<PieceSeat, readonly number[]> = { 0: [], 1: [], 2: [] };
+  for (const p of players) {
+    const seat = p.id as PieceSeat;
+    if (seat >= 0 && seat <= 2) {
+      bySeat[seat] = p.settlementVertexIds ?? [];
+    }
+  }
+  const takenBySeat: Record<PieceSeat, number> = { 0: 0, 1: 0, 2: 0 };
+  const sequence: { seat: PieceSeat; vertexId: number }[] = [];
+  for (const seat of PLACEMENT_ORDER) {
+    const idx = takenBySeat[seat];
+    const vid = bySeat[seat][idx];
+    if (vid === undefined) {
+      continue;
+    }
+    sequence.push({ seat, vertexId: vid });
+    takenBySeat[seat] = idx + 1;
+  }
+  if (maxPlacements === undefined || maxPlacements < 0) {
+    return sequence;
+  }
+  return sequence.slice(0, maxPlacements);
 }
 

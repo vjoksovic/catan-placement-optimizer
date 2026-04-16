@@ -34,6 +34,7 @@ export class MapSidebarComponent implements OnInit {
   /** When true, active seat comes from API (`isPlaying`); seat buttons are disabled. */
   @Input() nowPlayingSeatLocked = false;
   @Input({ required: true }) nowPlayingCaption!: { seat: string; colorLabel: string; swatch: 'white' | 'blue' | 'orange' };
+  @Input() winnerCaption: { seat: string; colorLabel: string; swatch: 'white' | 'blue' | 'orange' } | null = null;
   @Input({ required: true }) heatmapOn!: boolean;
   @Input({ required: true }) playersBySeat!: readonly PlayerHeuristicRow[];
   @Input({ required: true }) playersByOverall!: readonly PlayerHeuristicRow[];
@@ -43,6 +44,9 @@ export class MapSidebarComponent implements OnInit {
   @Input({ required: true }) mapGenerated!: boolean;
   /** While a session is active, generate is disabled. */
   @Input({ required: true }) gameStarted!: boolean;
+  @Input({ required: true }) gameOver!: boolean;
+  @Input({ required: true }) hasSettlementsOnMap!: boolean;
+  @Input({ required: true }) placementRevealInProgress!: boolean;
   @Input({ required: true }) generateMapDisabled!: boolean;
   @Input({ required: true }) startGameDisabled!: boolean;
 
@@ -50,11 +54,10 @@ export class MapSidebarComponent implements OnInit {
   @Output() readonly heatmapToggle = new EventEmitter<void>();
   @Output() readonly generateMap = new EventEmitter<readonly PlaystyleId[]>();
   @Output() readonly startGame = new EventEmitter<void>();
-  @Output() readonly abortGame = new EventEmitter<void>();
+  @Output() readonly abortPlacing = new EventEmitter<void>();
 
   /** Configure playstyle per seat before calling the API. */
   generateDialogOpen = false;
-  abortDialogOpen = false;
   readonly playstyleOptions = PLAYSTYLE_VALUES;
   readonly playstyleLabels: Record<PlaystyleId, string> = {
     BALANCED: 'Balanced',
@@ -74,22 +77,6 @@ export class MapSidebarComponent implements OnInit {
     }
     this.applyStoredPlaystyles();
     this.generateDialogOpen = true;
-    this.cdr.markForCheck();
-  }
-
-  openAbortDialog(): void {
-    this.abortDialogOpen = true;
-    this.cdr.markForCheck();
-  }
-
-  closeAbortDialog(): void {
-    this.abortDialogOpen = false;
-    this.cdr.markForCheck();
-  }
-
-  confirmAbort(): void {
-    this.abortDialogOpen = false;
-    this.abortGame.emit();
     this.cdr.markForCheck();
   }
 

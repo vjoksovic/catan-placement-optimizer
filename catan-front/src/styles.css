@@ -80,6 +80,12 @@ app-map-graph-view .token-chip {
   fill: #e2e6ea;
 }
 
+app-map-graph-view .token-chip--empty {
+  fill: rgba(214, 224, 230, 0.12);
+  stroke: rgba(186, 200, 210, 0.45);
+  stroke-width: 1.6;
+}
+
 app-map-graph-view .vertex-heat-marker {
   cursor: pointer;
 }
@@ -110,6 +116,10 @@ app-map-graph-view .vertex-heat-dot--selected {
   stroke: #ffffff;
   stroke-width: 3;
   filter: brightness(1.12);
+}
+
+app-map-graph-view .vertex-heat-dot--occupied {
+  opacity: 0.38;
 }
 
 app-map-graph-view .vertex-heat-tooltip {
@@ -164,12 +174,27 @@ app-map-graph-view .vertex-heat-tooltip__dl dd.vertex-heat-tooltip__value {
   text-align: right;
 }
 
+app-map-graph-view .vertex-heat-tooltip__label--highlight {
+  color: rgba(214, 223, 230, 0.98);
+  font-weight: 700;
+}
+
+app-map-graph-view .vertex-heat-tooltip__value--highlight {
+  border-top: 1px solid rgba(116, 140, 154, 0.45);
+  padding-top: 0.16rem;
+}
+
 app-map-graph-view .vertex-heat-tooltip__res {
   display: block;
   font: inherit;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   color: #f0f4f7;
+}
+
+app-map-graph-view .vertex-heat-tooltip__res--highlight {
+  color: #ffffff;
+  font-weight: 800;
 }
 
 app-map-graph-view .vertex-index-label {
@@ -287,6 +312,9 @@ app-map-sidebar .sidebar__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.34rem;
+}
+app-map-sidebar .sidebar__actions--single {
+  grid-template-columns: minmax(0, 1fr);
 }
 app-map-sidebar .sidebar__action-btn {
   width: 100%;

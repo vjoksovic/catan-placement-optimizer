@@ -14,16 +14,16 @@ import lombok.Setter;
 public class Vertex {
   private int id;
   private List<Integer> fields;
-  private HashMap<Integer, Boolean> neighbours;
-  private boolean isAccessible;
+  private HashMap<Integer, Boolean> roadFlags;
   private Heuristic value;
   private HeatmapRating heatmapRating;
+  private boolean isSettled;
 
-  public Vertex(int id, List<Integer> fields, HashMap<Integer, Boolean> neighbours) {
+  public Vertex(int id, List<Integer> fields, HashMap<Integer, Boolean> roadFlags) {
     this.id = id;
     this.fields = fields;
-    this.neighbours = neighbours;
-    this.isAccessible = true;
+    this.roadFlags = roadFlags;
     this.value = new Heuristic();
+    this.isSettled = false;
   }
 }

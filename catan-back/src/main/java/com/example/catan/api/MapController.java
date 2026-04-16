@@ -1,11 +1,11 @@
 package com.example.catan.api;
 
-import com.example.catan.dto.PlaystyleRequest;
-import com.example.catan.models.map.Map;
+import com.example.catan.dto.PlaystyleDto;
+import com.example.catan.dto.Response;
+import com.example.catan.dto.ResponseMapper;
 import com.example.catan.services.GeneratorService;
 import com.example.catan.services.HeuristicService;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,20 +16,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class MapController {
 
   private final HeuristicService heuristicService;
-  private final ObjectProvider<GeneratorService> generatorServiceProvider;
+  private final GeneratorService generatorService;
 
   public MapController(
       HeuristicService heuristicService,
-      ObjectProvider<GeneratorService> generatorServiceProvider) {
+      GeneratorService generatorService) {
     this.heuristicService = heuristicService;
-    this.generatorServiceProvider = generatorServiceProvider;
+    this.generatorService = generatorService;
   }
 
   @PostMapping("/generate")
-  public Map generate(@RequestBody PlaystyleRequest request) {
-    GeneratorService generatorService = generatorServiceProvider.getObject();
-    Map map = generatorService.generateNew(request.getPlaystyles());
+  public Response generate(@RequestBody PlaystyleDto request) {
+    com.example.catan.models.map.Map map = generatorService.generateNew(request.getPlaystyles());
     heuristicService.calculateHeuristic(map);
-    return map;
+    return ResponseMapper.from(map);
   }
 }

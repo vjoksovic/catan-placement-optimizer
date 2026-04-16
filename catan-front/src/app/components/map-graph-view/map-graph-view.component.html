@@ -12,13 +12,17 @@
     [generateMapFailed]="facade.generateMapFailed()"
     [mapGenerated]="facade.mapGenerated()"
     [gameStarted]="facade.gameStarted()"
+    [gameOver]="facade.gameOver()"
+    [winnerCaption]="facade.winnerCaption()"
+    [hasSettlementsOnMap]="facade.hasSettlementsOnMap()"
+    [placementRevealInProgress]="facade.placementRevealInProgress()"
     [generateMapDisabled]="facade.generateMapDisabled()"
     [startGameDisabled]="facade.startGameDisabled()"
     (nowPlayingSeatChange)="facade.setNowPlayingSeat($event)"
     (heatmapToggle)="facade.toggleHeatmap()"
     (generateMap)="facade.generateMap($event)"
     (startGame)="facade.startGame()"
-    (abortGame)="facade.confirmAbortGame()"
+    (abortPlacing)="facade.abortPlacing()"
   />
 
   <div class="map-stage">
@@ -76,47 +80,14 @@
               (click)="facade.onEdgeClick(h.fieldNumber, e.num, $event)"
             />
           }
-          @if (h.productionNumber !== null) {
-            <g class="token">
-              <circle class="token-chip" r="24" cx="0" cy="0" />
-              <text class="token-num" [class.token-num--hot]="h.tokenHot" x="0" y="0" text-anchor="middle" dominant-baseline="middle">
-                {{ h.productionNumber }}
-              </text>
-            </g>
-          }
-        </g>
-      }
-
-      @if (facade.heatmapOn()) {
-        <g class="vertex-heat-layer">
-          @for (v of facade.heatmapVertexMarkers(); track v.id) {
-            <g
-              class="vertex-heat-marker"
-              [attr.transform]="'translate(' + v.x + ',' + v.y + ')'"
-              (pointerenter)="facade.onVertexHeatPointerEnter(v.id, $event)"
-              (pointermove)="facade.onVertexHeatPointerMove(v.id, $event)"
-              (pointerleave)="facade.onVertexHeatPointerLeave()"
-              (click)="facade.onVertexClick(v.id, $event)"
-            >
-              <circle
-                class="vertex-heat-dot"
-                [class.vertex-heat-dot--ring]="v.ring"
-                [class.vertex-heat-dot--selected]="v.selected"
-                cx="0"
-                cy="0"
-                r="18"
-                [attr.fill]="v.fill"
-              />
-              <text
-                class="vertex-heat-grade"
-                x="0"
-                y="0"
-                text-anchor="middle"
-                dominant-baseline="middle"
-                pointer-events="none"
-              >
-                {{ v.grade }}
-              </text>
+          @if (h.showToken) {
+            <g class="token" [class.token--empty]="h.productionNumber === null">
+                <circle class="token-chip" [class.token-chip--empty]="h.productionNumber === null" r="24" cx="0" cy="0" />
+              @if (h.productionNumber !== null) {
+                <text class="token-num" [class.token-num--hot]="h.tokenHot" x="0" y="0" text-anchor="middle" dominant-baseline="middle">
+                  {{ h.productionNumber }}
+                </text>
+              }
             </g>
           }
         </g>
@@ -147,6 +118,42 @@
           </g>
         }
       </g>
+
+      @if (facade.heatmapOn()) {
+        <g class="vertex-heat-layer">
+          @for (v of facade.heatmapVertexMarkers(); track v.id) {
+            <g
+              class="vertex-heat-marker"
+              [attr.transform]="'translate(' + v.x + ',' + v.y + ')'"
+              (pointerenter)="facade.onVertexHeatPointerEnter(v.id, $event)"
+              (pointermove)="facade.onVertexHeatPointerMove(v.id, $event)"
+              (pointerleave)="facade.onVertexHeatPointerLeave()"
+              (click)="facade.onVertexClick(v.id, $event)"
+            >
+              <circle
+                class="vertex-heat-dot"
+                [class.vertex-heat-dot--ring]="v.ring"
+                [class.vertex-heat-dot--selected]="v.selected"
+                [class.vertex-heat-dot--occupied]="v.occupied"
+                cx="0"
+                cy="0"
+                r="18"
+                [attr.fill]="v.fill"
+              />
+              <text
+                class="vertex-heat-grade"
+                x="0"
+                y="0"
+                text-anchor="middle"
+                dominant-baseline="middle"
+                pointer-events="none"
+              >
+                {{ v.id }}
+              </text>
+            </g>
+          }
+        </g>
+      }
     </svg>
   </div>
   @if (facade.vertexHeatTooltipView(); as tip) {
@@ -161,9 +168,9 @@
       <header class="vertex-heat-tooltip__heading">Heuristic values</header>
       <dl class="vertex-heat-tooltip__dl">
         @for (row of tip.rows; track row.label) {
-          <dt class="vertex-heat-tooltip__label">{{ row.label }}</dt>
-          <dd class="vertex-heat-tooltip__value">
-            <output class="vertex-heat-tooltip__res">{{ row.value }}</output>
+          <dt class="vertex-heat-tooltip__label" [class.vertex-heat-tooltip__label--highlight]="row.highlighted">{{ row.label }}</dt>
+          <dd class="vertex-heat-tooltip__value" [class.vertex-heat-tooltip__value--highlight]="row.highlighted">
+            <output class="vertex-heat-tooltip__res" [class.vertex-heat-tooltip__res--highlight]="row.highlighted">{{ row.value }}</output>
           </dd>
         }
       </dl>

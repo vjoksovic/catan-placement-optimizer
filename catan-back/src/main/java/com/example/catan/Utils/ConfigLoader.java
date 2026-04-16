@@ -56,6 +56,23 @@ public final class ConfigLoader {
     }
   }
 
+  public static int[] loadGameOrder() {
+    try (InputStream in = openClasspath(DEFAULT_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      JsonNode orderNode = root.path("order");
+      if (!orderNode.isArray() || orderNode.isEmpty()) {
+        throw new IllegalStateException("game.json: missing or empty order");
+      }
+      int[] out = new int[orderNode.size()];
+      for (int i = 0; i < orderNode.size(); i++) {
+        out[i] = orderNode.get(i).asInt();
+      }
+      return out;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   public static Map<String, Double> loadResourceWeights() {
     try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
       JsonNode root = MAPPER.readTree(in);
@@ -66,6 +83,9 @@ public final class ConfigLoader {
   }
 
   private static final Map<String, Double> DEFAULT_SCARCITY_RESOURCE_MULTIPLIERS;
+  private static final Map<String, Double> DEFAULT_NUMBER_MULTIPLIERS;
+  private static final Map<String, Double> DEFAULT_HEURISTIC_SCALING_MAX_VALUES;
+  private static final Map<String, Double> DEFAULT_HEURISTIC_SCALING_TARGET_SHARES;
 
   static {
     Map<String, Double> d = new HashMap<>();
@@ -76,6 +96,34 @@ public final class ConfigLoader {
     d.put("ORE", 1.25);
     d.put("DESERT", 0.0);
     DEFAULT_SCARCITY_RESOURCE_MULTIPLIERS = Collections.unmodifiableMap(d);
+
+    Map<String, Double> numberMultipliers = new HashMap<>();
+    numberMultipliers.put("2", 0.5);
+    numberMultipliers.put("3", 0.75);
+    numberMultipliers.put("4", 1.0);
+    numberMultipliers.put("5", 1.2);
+    numberMultipliers.put("6", 1.35);
+    numberMultipliers.put("7", 0.0);
+    numberMultipliers.put("8", 1.35);
+    numberMultipliers.put("9", 1.2);
+    numberMultipliers.put("10", 1.0);
+    numberMultipliers.put("11", 0.75);
+    numberMultipliers.put("12", 0.5);
+    DEFAULT_NUMBER_MULTIPLIERS = Collections.unmodifiableMap(numberMultipliers);
+
+    Map<String, Double> maxValues = new HashMap<>();
+    maxValues.put("production", 15.5);
+    maxValues.put("resourceDiversity", 3.0);
+    maxValues.put("numberDiversity", 3.0);
+    maxValues.put("scarcity", 8.6);
+    DEFAULT_HEURISTIC_SCALING_MAX_VALUES = Collections.unmodifiableMap(maxValues);
+
+    Map<String, Double> targetShares = new HashMap<>();
+    targetShares.put("production", 5.0);
+    targetShares.put("resourceDiversity", 2.0);
+    targetShares.put("numberDiversity", 2.0);
+    targetShares.put("scarcity", 1.0);
+    DEFAULT_HEURISTIC_SCALING_TARGET_SHARES = Collections.unmodifiableMap(targetShares);
   }
 
   /**
@@ -87,6 +135,22 @@ public final class ConfigLoader {
       JsonNode root = MAPPER.readTree(in);
       Map<String, Double> parsed = parseStringDoubleMap(root.path("scarcityResourceMultipliers"));
       Map<String, Double> out = new HashMap<>(DEFAULT_SCARCITY_RESOURCE_MULTIPLIERS);
+      out.putAll(parsed);
+      return Collections.unmodifiableMap(out);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Per-number multipliers applied to number diversity points.
+   * JSON entries override {@link #DEFAULT_NUMBER_MULTIPLIERS}; missing keys keep defaults.
+   */
+  public static Map<String, Double> loadNumberMultipliers() {
+    try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      Map<String, Double> parsed = parseStringDoubleMap(root.path("numberMultipliers"));
+      Map<String, Double> out = new HashMap<>(DEFAULT_NUMBER_MULTIPLIERS);
       out.putAll(parsed);
       return Collections.unmodifiableMap(out);
     } catch (IOException e) {
@@ -110,6 +174,38 @@ public final class ConfigLoader {
         weightsByPlaystyle.put(playstyleName, parseStringDoubleMap(playstyleNode));
       }
       return weightsByPlaystyle;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Maximum raw values used to scale heuristic components into target shares.
+   * JSON path: {@code heuristicScaling.maxValues}.
+   */
+  public static Map<String, Double> loadHeuristicScalingMaxValues() {
+    try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      Map<String, Double> parsed = parseStringDoubleMap(root.path("heuristicScaling").path("maxValues"));
+      Map<String, Double> out = new HashMap<>(DEFAULT_HEURISTIC_SCALING_MAX_VALUES);
+      out.putAll(parsed);
+      return Collections.unmodifiableMap(out);
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Target share values used for scaled heuristic components.
+   * JSON path: {@code heuristicScaling.targetShares}.
+   */
+  public static Map<String, Double> loadHeuristicScalingTargetShares() {
+    try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      Map<String, Double> parsed = parseStringDoubleMap(root.path("heuristicScaling").path("targetShares"));
+      Map<String, Double> out = new HashMap<>(DEFAULT_HEURISTIC_SCALING_TARGET_SHARES);
+      out.putAll(parsed);
+      return Collections.unmodifiableMap(out);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -234,13 +330,13 @@ public final class ConfigLoader {
         }
 
         List<Integer> fields = parseIntList(v.path("fields"));
-        HashMap<Integer, Boolean> neighbours = new HashMap<>();
+        HashMap<Integer, Boolean> roadFlags = new HashMap<>();
         for (Integer nId : parseIntList(v.path("neighbours"))) {
           if (nId != null && nId >= 0 && nId < size) {
-            neighbours.put(nId, false);
+            roadFlags.put(nId, false);
           }
         }
-        out.add(new Vertex(id, fields, neighbours));
+        out.add(new Vertex(id, fields, roadFlags));
         index++;
       }
       return out;

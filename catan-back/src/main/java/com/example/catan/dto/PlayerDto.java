@@ -1,6 +1,5 @@
-package com.example.catan.models.map;
+package com.example.catan.dto;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.example.catan.models.enums.Playstyle;
@@ -11,19 +10,9 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class Player {
+public class PlayerDto {
   private int id;
   private Playstyle playstyle;
   private List<Integer> settlements;
   private Score score;
-
-  public Player() {}
-
-  public Player(int id, Playstyle playstyle) {
-    this.id = id;
-    this.playstyle = playstyle;
-    this.settlements = new ArrayList<>();
-    this.score = new Score();
-  }
-
 }
