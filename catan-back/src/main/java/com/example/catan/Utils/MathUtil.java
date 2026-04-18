@@ -1,6 +1,6 @@
 package com.example.catan.utils;
 
-import com.example.catan.models.enums.Playstyle;
+import com.example.catan.models.enums.Tactic;
 import com.example.catan.models.values.Heuristic;
 
 public final class MathUtil {
@@ -26,8 +26,8 @@ public final class MathUtil {
   private MathUtil() {
   }
 
-  public static double round1(double x) {
-    return Math.round(x * 10.0) / 10.0;
+  public static double round2(double x) {
+    return Math.round(x * 100.0) / 100.0;
   }
 
   public static double scaleToRatio(double rawValue, double maxRawValue, double targetRatioValue) {
@@ -66,31 +66,29 @@ public final class MathUtil {
         targetShares.getOrDefault(SCARCITY_KEY, DEFAULT_TARGET_SCARCITY_RATIO));
   }
 
-  public static void roundHeuristicToOneDecimal(
-      Heuristic heuristic,
-      HeuristicScalingContext scalingContext) {
-    double p = round1(scaleToRatio(heuristic.getProductionValue(), scalingContext.maxProductionValue(), scalingContext.productionRatio()));
-    double r = round1(scaleToRatio(heuristic.getResourceDiversityValue(), scalingContext.maxResourceDiversityValue(), scalingContext.resourceDiversityRatio()));
-    double n = round1(scaleToRatio(heuristic.getNumberDiversityValue(), scalingContext.maxNumberDiversityValue(), scalingContext.numberDiversityRatio()));
-    double s = round1(scaleToRatio(heuristic.getScarcityValue(), scalingContext.maxScarcityValue(), scalingContext.scarcityRatio()));
-    double balanced = weightedTotalForPlaystyle(Playstyle.BALANCED, p, r, n, s);
-    double productionFocused = weightedTotalForPlaystyle(Playstyle.PRODUCTION_FOCUSED, p, r, n, s);
-    double scarcityFocused = weightedTotalForPlaystyle(Playstyle.SCARCITY_FOCUSED, p, r, n, s);
+  public static void roundHeuristic(Heuristic heuristic, HeuristicScalingContext scalingContext, int settlementsCount) {
+    double p = round2(scaleToRatio(heuristic.getProductionValue(), scalingContext.maxProductionValue() * settlementsCount, scalingContext.productionRatio()));
+    double r = round2(scaleToRatio(heuristic.getResourceDiversityValue(), scalingContext.maxResourceDiversityValue() * settlementsCount, scalingContext.resourceDiversityRatio()));
+    double n = round2(scaleToRatio(heuristic.getNumberDiversityValue(), scalingContext.maxNumberDiversityValue() * settlementsCount, scalingContext.numberDiversityRatio()));
+    double s = round2(scaleToRatio(heuristic.getScarcityValue(), scalingContext.maxScarcityValue() * settlementsCount, scalingContext.scarcityRatio()));
+    double balanced = weightedTotalForTactic(Tactic.BALANCED, p, r, n, s);
+    double productionFocused = weightedTotalForTactic(Tactic.PRODUCTION_FOCUSED, p, r, n, s);
+    double scarcityFocused = weightedTotalForTactic(Tactic.SCARCITY_FOCUSED, p, r, n, s);
     heuristic.setProductionValue(p);
     heuristic.setResourceDiversityValue(r);
     heuristic.setNumberDiversityValue(n);
     heuristic.setScarcityValue(s);
-    heuristic.setBalancedValue(round1(balanced));
-    heuristic.setProductionFocusedValue(round1(productionFocused));
-    heuristic.setScarcityFocusedValue(round1(scarcityFocused));
-    heuristic.setOverallValue(round1(p + r + n + s));
+    heuristic.setBalancedValue(round2(balanced));
+    heuristic.setProductionFocusedValue(round2(productionFocused));
+    heuristic.setScarcityFocusedValue(round2(scarcityFocused));
+    heuristic.setOverallValue(round2(p + r + n + s));
   }
 
-  private static double weightedTotalForPlaystyle(Playstyle playstyle, double p, double r, double n, double s) {
-    return p * playstyle.getProductionWeight()
-        + r * playstyle.getResourceDiversityWeight()
-        + n * playstyle.getNumberDiversityWeight()
-        + s * playstyle.getScarcityWeight();
+  private static double weightedTotalForTactic(Tactic tactic, double p, double r, double n, double s) {
+    return p * tactic.getProductionWeight()
+        + r * tactic.getResourceDiversityWeight()
+        + n * tactic.getNumberDiversityWeight()
+        + s * tactic.getScarcityWeight();
   }
 
   private static double percentage(double value, double percent) {

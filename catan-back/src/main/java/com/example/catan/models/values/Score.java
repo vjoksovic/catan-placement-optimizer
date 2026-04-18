@@ -21,9 +21,9 @@ public class Score {
   }
 
   public void setValues(double productionValue, double resourceDiversityValue, double numberDiversityValue, double scarcityValue) {
-    this.productionScore += MathUtil.round1(productionValue);
-    this.diversityScore += MathUtil.round1((resourceDiversityValue + numberDiversityValue) / 2);
-    this.scarcityScore += MathUtil.round1(scarcityValue);
-    this.totalScore = MathUtil.round1(this.productionScore + this.diversityScore + this.scarcityScore);
+    this.productionScore = MathUtil.round2(productionValue);
+    this.diversityScore = MathUtil.round2((resourceDiversityValue + numberDiversityValue) / 2);
+    this.scarcityScore = MathUtil.round2(scarcityValue);
+    this.totalScore = MathUtil.round2(this.productionScore + this.diversityScore + this.scarcityScore);
   }
 }

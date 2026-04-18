@@ -235,7 +235,7 @@ function mapPlayer(p: GameBoardPlayerDto): MapPlayerData {
   const roads = roadPairsFromPlayer(p);
   return {
     id: p.id,
-    playstyle: String(p.playstyle),
+    tactic: String(p.tactic),
     productionScore: score.productionScore ?? p.productionScore ?? 0,
     diversityScore: score.diversityScore ?? p.diversityScore ?? 0,
     scarcityScore: score.scarcityScore ?? p.scarcityScore ?? 0,

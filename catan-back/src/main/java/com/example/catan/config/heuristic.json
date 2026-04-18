@@ -37,30 +37,30 @@
       "scarcity": 10.7
     },
     "targetShares": {
-      "production": 7.0,
+      "production": 6.5,
       "resourceDiversity": 2.0,
-      "numberDiversity": 2.0,
-      "scarcity": 2.0
+      "numberDiversity": 2.5,
+      "scarcity": 1.5
     }
   },
-  "playstyleWeights": {
+  "tacticWeights": {
     "BALANCED": {
-      "productionWeight": 1.0,
-      "resourceDiversityWeight": 1.0,
-      "numberDiversityWeight": 0.8,
+      "productionWeight": 1.2,
+      "resourceDiversityWeight": 0.8,
+      "numberDiversityWeight": 1.0,
       "scarcityWeight": 1.0
     },
     "PRODUCTION_FOCUSED": {
-      "productionWeight": 1.5,
-      "resourceDiversityWeight": 0.4,
-      "numberDiversityWeight": 0.4,
+      "productionWeight": 1.8,
+      "resourceDiversityWeight": 0.5,
+      "numberDiversityWeight": 0.5,
       "scarcityWeight": 0.4
     },
     "SCARCITY_FOCUSED": {
-      "productionWeight": 0.7,
+      "productionWeight": 0.8,
       "resourceDiversityWeight": 0.5,
       "numberDiversityWeight": 0.5,
-      "scarcityWeight": 2.0
+      "scarcityWeight": 2.8
     }
   }
 }

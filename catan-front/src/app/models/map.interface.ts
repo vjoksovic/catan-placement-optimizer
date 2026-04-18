@@ -38,7 +38,7 @@ export interface BoardVertexData {
 /** Seat data from `com.example.catan.models.Player` JSON. */
 export interface MapPlayerData {
   readonly id: number;
-  readonly playstyle: string;
+  readonly tactic: string;
   readonly productionScore: number;
   readonly diversityScore: number;
   readonly scarcityScore: number;

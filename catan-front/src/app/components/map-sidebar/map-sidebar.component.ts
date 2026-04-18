@@ -9,12 +9,12 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { PlayerHeuristicRow, ResourceOnMapRow } from '../../models/map.interface';
-import { PLAYSTYLE_VALUES, type PlaystyleId } from '../../models/playstyle';
+import { TACTIC_VALUES, type TacticId } from '../../models/tactic';
 
-const PLAYSTYLE_STORAGE_KEY = 'catan.playstyles.perSeat';
+const TACTIC_STORAGE_KEY = 'catan.tactics.perSeat';
 
-function isPlaystyleId(value: string): value is PlaystyleId {
-  return (PLAYSTYLE_VALUES as readonly string[]).includes(value);
+function isTacticId(value: string): value is TacticId {
+  return (TACTIC_VALUES as readonly string[]).includes(value);
 }
 
 export type NowPlayingSeat = '1st' | '2nd' | '3rd';
@@ -52,22 +52,22 @@ export class MapSidebarComponent implements OnInit {
 
   @Output() readonly nowPlayingSeatChange = new EventEmitter<NowPlayingSeat>();
   @Output() readonly heatmapToggle = new EventEmitter<void>();
-  @Output() readonly generateMap = new EventEmitter<readonly PlaystyleId[]>();
+  @Output() readonly generateMap = new EventEmitter<readonly TacticId[]>();
   @Output() readonly startGame = new EventEmitter<void>();
   @Output() readonly abortPlacing = new EventEmitter<void>();
 
-  /** Configure playstyle per seat before calling the API. */
+  /** Configure tactic per seat before calling the API. */
   generateDialogOpen = false;
-  readonly playstyleOptions = PLAYSTYLE_VALUES;
-  readonly playstyleLabels: Record<PlaystyleId, string> = {
+  readonly tacticOptions = TACTIC_VALUES;
+  readonly tacticLabels: Record<TacticId, string> = {
     BALANCED: 'Balanced',
     PRODUCTION_FOCUSED: 'Production-focused',
     SCARCITY_FOCUSED: 'Scarcity-focused',
   };
-  seatPlaystyles: [PlaystyleId, PlaystyleId, PlaystyleId] = ['BALANCED', 'BALANCED', 'BALANCED'];
+  seatTactics: [TacticId, TacticId, TacticId] = ['BALANCED', 'BALANCED', 'BALANCED'];
 
   ngOnInit(): void {
-    this.applyStoredPlaystyles();
+    this.applyStoredTactics();
     this.cdr.markForCheck();
   }
 
@@ -75,25 +75,25 @@ export class MapSidebarComponent implements OnInit {
     if (this.generateMapDisabled) {
       return;
     }
-    this.applyStoredPlaystyles();
+    this.applyStoredTactics();
     this.generateDialogOpen = true;
     this.cdr.markForCheck();
   }
 
   /** Restore last saved triple from {@link localStorage}, if valid. */
-  private applyStoredPlaystyles(): void {
-    const stored = this.readPlaystylesFromStorage();
+  private applyStoredTactics(): void {
+    const stored = this.readTacticsFromStorage();
     if (stored) {
-      this.seatPlaystyles = stored;
+      this.seatTactics = stored;
     }
   }
 
-  private readPlaystylesFromStorage(): [PlaystyleId, PlaystyleId, PlaystyleId] | null {
+  private readTacticsFromStorage(): [TacticId, TacticId, TacticId] | null {
     if (typeof window === 'undefined') {
       return null;
     }
     try {
-      const raw = window.localStorage.getItem(PLAYSTYLE_STORAGE_KEY);
+      const raw = window.localStorage.getItem(TACTIC_STORAGE_KEY);
       if (!raw) {
         return null;
       }
@@ -101,10 +101,10 @@ export class MapSidebarComponent implements OnInit {
       if (!Array.isArray(parsed) || parsed.length !== 3) {
         return null;
       }
-      const out: PlaystyleId[] = [];
+      const out: TacticId[] = [];
       for (let i = 0; i < 3; i++) {
         const s = String(parsed[i]);
-        if (!isPlaystyleId(s)) {
+        if (!isTacticId(s)) {
           return null;
         }
         out.push(s);
@@ -115,12 +115,12 @@ export class MapSidebarComponent implements OnInit {
     }
   }
 
-  private persistPlaystyles(): void {
+  private persistTactics(): void {
     if (typeof window === 'undefined') {
       return;
     }
     try {
-      window.localStorage.setItem(PLAYSTYLE_STORAGE_KEY, JSON.stringify(this.seatPlaystyles));
+      window.localStorage.setItem(TACTIC_STORAGE_KEY, JSON.stringify(this.seatTactics));
     } catch {
       // quota / private mode
     }
@@ -130,22 +130,21 @@ export class MapSidebarComponent implements OnInit {
     this.generateDialogOpen = false;
   }
 
-  onSeatPlaystyleModelChange(index: 0 | 1 | 2, value: unknown): void {
+  onSeatTacticModelChange(index: 0 | 1 | 2, value: unknown): void {
     const s = String(value);
-    if (!isPlaystyleId(s)) {
+    if (!isTacticId(s)) {
       return;
     }
-    const next: [PlaystyleId, PlaystyleId, PlaystyleId] = [...this.seatPlaystyles];
+    const next: [TacticId, TacticId, TacticId] = [...this.seatTactics];
     next[index] = s;
-    this.seatPlaystyles = next;
-    this.persistPlaystyles();
+    this.seatTactics = next;
+    this.persistTactics();
     this.cdr.markForCheck();
   }
 
   confirmGenerate(): void {
     this.generateDialogOpen = false;
-    this.persistPlaystyles();
-    this.generateMap.emit(this.seatPlaystyles);
+    this.persistTactics();
+    this.generateMap.emit(this.seatTactics);
   }
 }
-

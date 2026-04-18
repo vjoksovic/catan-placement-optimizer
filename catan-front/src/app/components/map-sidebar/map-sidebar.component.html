@@ -53,47 +53,47 @@
           aria-labelledby="generate-dialog-title"
           (click)="$event.stopPropagation()"
         >
-          <h3 id="generate-dialog-title" class="generate-dialog__title">Playstyles (3 seats)</h3>
+          <h3 id="generate-dialog-title" class="generate-dialog__title">Tactics (3 seats)</h3>
           <p class="generate-dialog__hint">Choose how each seat weights production, diversity, and scarcity.</p>
           <div class="generate-dialog__row">
-            <label class="generate-dialog__label" for="ps-seat-0">White · 1st</label>
+            <label class="generate-dialog__label" for="tc-seat-0">White · 1st</label>
             <select
-              id="ps-seat-0"
+              id="tc-seat-0"
               class="generate-dialog__select"
-              name="ps-seat-0"
-              [ngModel]="seatPlaystyles[0]"
-              (ngModelChange)="onSeatPlaystyleModelChange(0, $event)"
+              name="tc-seat-0"
+              [ngModel]="seatTactics[0]"
+              (ngModelChange)="onSeatTacticModelChange(0, $event)"
             >
-              @for (p of playstyleOptions; track p) {
-                <option [ngValue]="p">{{ playstyleLabels[p] }}</option>
+              @for (p of tacticOptions; track p) {
+                <option [ngValue]="p">{{ tacticLabels[p] }}</option>
               }
             </select>
           </div>
           <div class="generate-dialog__row">
-            <label class="generate-dialog__label" for="ps-seat-1">Blue · 2nd</label>
+            <label class="generate-dialog__label" for="tc-seat-1">Blue · 2nd</label>
             <select
-              id="ps-seat-1"
+              id="tc-seat-1"
               class="generate-dialog__select"
-              name="ps-seat-1"
-              [ngModel]="seatPlaystyles[1]"
-              (ngModelChange)="onSeatPlaystyleModelChange(1, $event)"
+              name="tc-seat-1"
+              [ngModel]="seatTactics[1]"
+              (ngModelChange)="onSeatTacticModelChange(1, $event)"
             >
-              @for (p of playstyleOptions; track p) {
-                <option [ngValue]="p">{{ playstyleLabels[p] }}</option>
+              @for (p of tacticOptions; track p) {
+                <option [ngValue]="p">{{ tacticLabels[p] }}</option>
               }
             </select>
           </div>
           <div class="generate-dialog__row">
-            <label class="generate-dialog__label" for="ps-seat-2">Orange · 3rd</label>
+            <label class="generate-dialog__label" for="tc-seat-2">Orange · 3rd</label>
             <select
-              id="ps-seat-2"
+              id="tc-seat-2"
               class="generate-dialog__select"
-              name="ps-seat-2"
-              [ngModel]="seatPlaystyles[2]"
-              (ngModelChange)="onSeatPlaystyleModelChange(2, $event)"
+              name="tc-seat-2"
+              [ngModel]="seatTactics[2]"
+              (ngModelChange)="onSeatTacticModelChange(2, $event)"
             >
-              @for (p of playstyleOptions; track p) {
-                <option [ngValue]="p">{{ playstyleLabels[p] }}</option>
+              @for (p of tacticOptions; track p) {
+                <option [ngValue]="p">{{ tacticLabels[p] }}</option>
               }
             </select>
           </div>
@@ -216,12 +216,12 @@
     </section>
 
     <section class="panel panel--table" aria-label="Heuristic breakdown">
-      <h3 class="panel__table-title">Scores by seat</h3>
+      <h3 class="panel__table-title">Scores by player</h3>
       <div class="table-wrap">
         <table class="score-table">
           <thead>
             <tr>
-              <th scope="col">Seat</th>
+              <th scope="col">Player</th>
               <th scope="col" class="score-table__num">Prod</th>
               <th scope="col" class="score-table__num">Div</th>
               <th scope="col" class="score-table__num">Scar</th>

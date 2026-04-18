@@ -50,7 +50,7 @@ export interface GameBoardVertexDto {
 
 export interface GameBoardPlayerDto {
   id: number;
-  playstyle: string;
+  tactic: string;
   /** Preferred: vertex ids with settlements (two per player after placement). */
   settlementVertexIds?: number[];
   /** @deprecated Full vertex objects may appear from older serializers — ids are extracted in the mapper. */

@@ -1,30 +1,52 @@
 package com.example.catan.services;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import com.example.catan.models.map.Map;
+import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
 import com.example.catan.utils.ConfigLoader;
-
-import ch.qos.logback.core.joran.sanity.Pair;
+import com.example.catan.utils.MathUtil;
 
 import com.example.catan.models.map.Field;
 import com.example.catan.models.enums.HeatmapRating;
-import com.example.catan.models.enums.Playstyle;
 import com.example.catan.models.enums.Resource;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MapService {
+
+  private final VertexService vertexService;
   
-  public List<Field> getFields(Map map, int vertexId) {
-    List<Field> fields = new ArrayList<>();
-    for (int fieldId : map.getVertices().get(vertexId).getFields()) {
-      fields.add(map.getFields().get(fieldId));
+  public MapService(VertexService vertexService) {
+    this.vertexService = vertexService;
+  }
+
+  public void processPlayerHeuristics(Map map) {
+    for (Player player : map.getPlayers()) {
+      processPlayerVertices(map, player);
     }
-    return fields;
+  }
+
+  private void processPlayerVertices(Map map, Player player) {
+    for (Vertex vertex : map.getVertices()) {
+      double totalValue = vertex.getValue().getProductionValue() * player.getTactic().getProductionWeight()
+          + vertex.getValue().getResourceDiversityValue() * player.getTactic().getResourceDiversityWeight()
+          + vertex.getValue().getNumberDiversityValue() * player.getTactic().getNumberDiversityWeight()
+          + vertex.getValue().getScarcityValue() * player.getTactic().getScarcityWeight();
+      switch (player.getTactic()) {
+        case BALANCED:
+          vertex.getValue().setBalancedValue(MathUtil.round2(totalValue));
+          break;
+        case PRODUCTION_FOCUSED:
+          vertex.getValue().setProductionFocusedValue(MathUtil.round2(totalValue));
+          break;
+        case SCARCITY_FOCUSED:
+          vertex.getValue().setScarcityFocusedValue(MathUtil.round2(totalValue));
+          break;
+      }
+    }
   }
 
   public double getMaxProduction(Map map) {
@@ -35,100 +57,62 @@ public class MapService {
     return maxProduction;
   }
 
-  public int getMinProduction(Map map, Field field) {
+  public double getMinProduction(Map map, Field field) {
     for (java.util.Map.Entry<Resource, Integer> entry : map.getProduction().entrySet()) {
-      if (entry.getKey() == field.getResource() && entry.getKey() != Resource.DESERT && entry.getValue() < 10)
+      if (entry.getKey() == field.getResource() && entry.getKey() != Resource.DESERT && entry.getValue() < 10.0)
         return entry.getValue();
     }
-    return 0;
+    return 0.0;
   }
 
-  public Vertex getVertexByHeuristic(Map map, double heuristic, Playstyle playstyle) {
-    for (Vertex vertex : map.getVertices()) {
-      switch (playstyle) {
-        case BALANCED:
-          if (vertex.getValue().getBalancedValue() == heuristic) {
-            return vertex;
-          }
-        case PRODUCTION_FOCUSED:
-          if (vertex.getValue().getProductionFocusedValue() == heuristic) {
-            return vertex;
-          }
-        case SCARCITY_FOCUSED:
-          if (vertex.getValue().getScarcityFocusedValue() == heuristic) {
-            return vertex;
-          }
-      }
-    }
-    return null;
-  }
-
-  public Vertex getVertex(Map map, int vertexId) {
-    return map.getVertices().get(vertexId);
-  }
-
-  public java.util.Map<Vertex, Double> getHeuristicsByPlaystyle(Map map, Playstyle playstyle) {
+  public java.util.Map<Vertex, Double> getHeuristicsByPlayer(Map map, Player player) {
     java.util.Map<Vertex, Double> heuristics = new HashMap<>();
     for (Vertex vertex : map.getVertices()) {
-      if (vertex.isSettled()) 
+      if (vertex.isSettled() || player.getPlannedSettments().contains(vertex.getId())) 
         heuristics.put(vertex, 0.0);
       else 
-        heuristics.put(vertex, getHeuristicByPlaystyle(vertex, playstyle));
+        heuristics.put(vertex, vertexService.getHeuristicByPlayer(vertex, player));
     }
     return heuristics;
   }
 
-  public double getHeuristicByPlaystyle(Vertex vertex, Playstyle playstyle) {
-    switch (playstyle) {
-      case BALANCED:
-        return vertex.getValue().getBalancedValue();
-      case PRODUCTION_FOCUSED:
-        return vertex.getValue().getProductionFocusedValue();
-      case SCARCITY_FOCUSED:
-        return vertex.getValue().getScarcityFocusedValue();
-      default:
-        return 0;
-    }
-  }
-
-  public Vertex findRoute(Map map, Vertex vertex, Playstyle playstyle) {
+  public Vertex findRoute(Map map, Vertex vertex, Player player) {
     double bestHeuristic = 0;
     Vertex bestNeighbour = null;
+    Vertex bestPlanned = null;
     for (Integer neighbourId : vertex.getRoadFlags().keySet()) {
-      Vertex neighbour = getVertex(map, neighbourId);
-      double heuristic = getBestHeuristic(map, neighbour, playstyle);
-      if (heuristic > bestHeuristic) {
-        bestHeuristic = heuristic;
-        bestNeighbour = neighbour;
+      Vertex neighbour = vertexService.getVertex(map, neighbourId);
+      java.util.Map<Vertex, Double> result = getBestNeighbour(map, neighbour, player);
+      for (java.util.Map.Entry<Vertex, Double> entry : result.entrySet()) {
+        if (entry.getValue() > bestHeuristic) {
+          bestHeuristic = entry.getValue();
+          bestNeighbour = neighbour;
+          bestPlanned = entry.getKey();
+        }
       }
     }
+    if (bestPlanned != null)
+      player.getPlannedSettments().add(bestPlanned.getId());
     return bestNeighbour;
   }
 
-  private double getBestHeuristic(Map map, Vertex vertex, Playstyle playstyle) {
+  private java.util.Map<Vertex, Double> getBestNeighbour(Map map, Vertex vertex, Player player) {
     double bestHeuristic = 0;
+    java.util.Map<Vertex, Double> bestEntry = new HashMap<>();
     for (Integer neighbourId : vertex.getRoadFlags().keySet()) {
-      Vertex neighbour = getVertex(map, neighbourId);
-      if (neighbour.isSettled()) 
+      Vertex neighbour = vertexService.getVertex(map, neighbourId);
+      if (neighbour.isSettled() || player.getPlannedSettments().contains(neighbour.getId())) 
         continue;
-      double heuristic = getHeuristicByPlaystyle(neighbour, playstyle);
-      if (heuristic > bestHeuristic) {
+      double heuristic = vertexService.getHeuristicByPlayer(neighbour, player);
+      if (heuristic > bestHeuristic) 
         bestHeuristic = heuristic;
-      }
+        bestEntry.put(neighbour, heuristic);
     }
-    return bestHeuristic;
+    return bestEntry;
   }
 
-  public void setSettled(Map map, Vertex vertex) {
-    vertex.setSettled(true);
-    for (Integer neighbourId : vertex.getRoadFlags().keySet()) {
-      Vertex neighbour = getVertex(map, neighbourId);
-      neighbour.setSettled(true);
-    }
-  }
-
-  public Vertex findSettlement(Map map, Playstyle playstyle) {
-    java.util.Map<Vertex, Double> heuristics = getHeuristicsByPlaystyle(map, playstyle);
+  public Vertex findSettlement(Map map, Player player) {
+    java.util.Map<Vertex, Double> heuristics = getHeuristicsByPlayer(map, player);
     double bestHeuristic = 0;
     Vertex bestSettlement = null;
     for (java.util.Map.Entry<Vertex, Double> entry : heuristics.entrySet()) {

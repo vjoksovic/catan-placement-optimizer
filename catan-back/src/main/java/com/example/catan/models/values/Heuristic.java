@@ -36,4 +36,15 @@ public class Heuristic {
     this.productionFocusedValue = productionValue + resourceDiversityValue + numberDiversityValue + scarcityValue;
     this.scarcityFocusedValue = productionValue + resourceDiversityValue + numberDiversityValue + scarcityValue;
   }
+
+  public Heuristic(double productionValue, double resourceDiversityValue, double numberDiversityValue, double scarcityValue) {
+    this.productionValue = productionValue;
+    this.resourceDiversityValue = resourceDiversityValue;
+    this.numberDiversityValue = numberDiversityValue;
+    this.scarcityValue = scarcityValue;
+    this.balancedValue = 0;
+    this.productionFocusedValue = 0;
+    this.scarcityFocusedValue = 0;
+    this.overallValue = 0;
+  }
 }

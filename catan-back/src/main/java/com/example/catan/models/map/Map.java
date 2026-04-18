@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import com.example.catan.models.enums.Playstyle;
+import com.example.catan.models.enums.Tactic;
 import com.example.catan.models.enums.Resource;
 import com.example.catan.utils.ConfigLoader;
 
@@ -18,7 +18,7 @@ public class Map {
   private List<Player> players;
   private HashMap<Resource, Integer> production;
 
-  public Map(List<Playstyle> playstyles) {
+  public Map(List<Tactic> tactics) {
     List<List<Integer>> neighbourLists = ConfigLoader.loadFieldNeighbours();
     List<List<Integer>> fieldVertexIds = ConfigLoader.loadFieldVertexIds();
     if (fieldVertexIds.size() != neighbourLists.size()) {
@@ -39,8 +39,8 @@ public class Map {
       }
     }
     this.players = new ArrayList<>();
-    for (int i = 0; i < playstyles.size(); i++) {
-      this.players.add(new Player(i, playstyles.get(i)));
+    for (int i = 0; i < tactics.size(); i++) {
+      this.players.add(new Player(i, tactics.get(i)));
     }
     this.production = new HashMap<>();
     for (Resource resource : Resource.values()) {

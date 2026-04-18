@@ -7,7 +7,7 @@ import {
   RESOURCE,
 } from '../../models/map.const';
 import { MapDataService } from './map-data.service';
-import type { PlaystyleId } from '../../models/playstyle';
+import type { TacticId } from '../../models/tactic';
 import {
   allHexScreenXY,
   analyzePlacement,
@@ -390,8 +390,8 @@ export class MapFacadeService {
     this.persistUiToSession();
   }
 
-  async generateMap(playstyles: readonly PlaystyleId[]): Promise<void> {
-    await this.mapData.generateMap(playstyles);
+  async generateMap(tactics: readonly TacticId[]): Promise<void> {
+    await this.mapData.generateMap(tactics);
     if (!this.mapData.generateMapFailed()) {
       this.gameStarted.set(false);
       this.persistUiToSession();

@@ -158,22 +158,22 @@ public final class ConfigLoader {
     }
   }
 
-  public static Map<String, Map<String, Double>> loadPlaystyleWeights() {
+  public static Map<String, Map<String, Double>> loadTacticWeights() {
     try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
       JsonNode root = MAPPER.readTree(in);
-      JsonNode playstylesNode = root.path("playstyleWeights");
-      Map<String, Map<String, Double>> weightsByPlaystyle = new HashMap<>();
-      if (!playstylesNode.isObject()) {
-        return weightsByPlaystyle;
+      JsonNode tacticsNode = root.path("tacticWeights");
+      Map<String, Map<String, Double>> weightsByTactic = new HashMap<>();
+      if (!tacticsNode.isObject()) {
+        return weightsByTactic;
       }
 
-      Iterator<String> playstyleNames = playstylesNode.fieldNames();
-      while (playstyleNames.hasNext()) {
-        String playstyleName = playstyleNames.next();
-        JsonNode playstyleNode = playstylesNode.path(playstyleName);
-        weightsByPlaystyle.put(playstyleName, parseStringDoubleMap(playstyleNode));
+      Iterator<String> tacticNames = tacticsNode.fieldNames();
+      while (tacticNames.hasNext()) {
+        String tacticName = tacticNames.next();
+        JsonNode tacticNode = tacticsNode.path(tacticName);
+        weightsByTactic.put(tacticName, parseStringDoubleMap(tacticNode));
       }
-      return weightsByPlaystyle;
+      return weightsByTactic;
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

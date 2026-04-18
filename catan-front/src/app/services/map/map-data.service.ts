@@ -8,7 +8,7 @@ import {
   piecesFromApiMap,
 } from './map-logic.service';
 import { MapApiService } from './map-api.service';
-import type { PlaystyleId } from '../../models/playstyle';
+import type { TacticId } from '../../models/tactic';
 
 const MAP_SESSION_STORAGE_KEY = 'catan.session.mapData.v1';
 
@@ -42,14 +42,14 @@ export class MapDataService {
     this.restoreFromSession();
   }
 
-  async generateMap(playstyles: readonly PlaystyleId[]): Promise<void> {
+  async generateMap(tactics: readonly TacticId[]): Promise<void> {
     this.stopTurnLoop();
     this.activeTurnNumberState.set(null);
     this.gameOverState.set(false);
     this.generateMapLoading.set(true);
     this.generateMapFailed.set(false);
     try {
-      const dto = await firstValueFrom(this.mapApi.generateMap(playstyles));
+      const dto = await firstValueFrom(this.mapApi.generateMap(tactics));
       const generatedMap = boardDtoToCatanMap(dto);
       this.mapState.set(generatedMap);
       this.hasGeneratedMap.set(true);

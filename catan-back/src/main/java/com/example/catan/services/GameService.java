@@ -1,6 +1,5 @@
 package com.example.catan.services;
 
-import com.example.catan.models.enums.Playstyle;
 import com.example.catan.models.map.Map;
 import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
@@ -12,10 +11,14 @@ import org.springframework.stereotype.Service;
 public class GameService {
 
   private int[] order;
-  private MapService mapService;
+  private final MapService mapService;
+  private final VertexService vertexService;
+  private final HeuristicService heuristicService;
 
-  public GameService(MapService mapService) {
+  public GameService(MapService mapService, VertexService vertexService, HeuristicService heuristicService) {
     this.mapService = mapService;
+    this.vertexService = vertexService;
+    this.heuristicService = heuristicService;
     this.order = ConfigLoader.loadGameOrder();
   }
 
@@ -29,23 +32,20 @@ public class GameService {
   }
 
   private void placeSettlement(Map map, Player player) {
-    Vertex settlement = mapService.findSettlement(map, player.getPlaystyle());
+    Vertex settlement = mapService.findSettlement(map, player);
     player.getSettlements().add(settlement.getId());
-    mapService.setSettled(map, settlement);
-    placeRoad(map, settlement, player.getPlaystyle());
-    updateScore(player, settlement);
+    vertexService.setSettled(map, settlement);
+    placeRoad(map, settlement, player);
+    updateScore(map, player);
   }
 
-  private void placeRoad(Map map, Vertex vertex, Playstyle playstyle) {
-    Vertex bestNeighbour = mapService.findRoute(map, vertex, playstyle);
+  private void placeRoad(Map map, Vertex vertex, Player player) {
+    Vertex bestNeighbour = mapService.findRoute(map, vertex, player);
     vertex.getRoadFlags().put(bestNeighbour.getId(), true);
   }
 
-  private void updateScore(Player player, Vertex vertex) {
-    player.getScore().setValues(vertex.getValue().getProductionValue(), 
-      vertex.getValue().getResourceDiversityValue(), 
-      vertex.getValue().getNumberDiversityValue(), 
-      vertex.getValue().getScarcityValue());
+  private void updateScore(Map map, Player player) {
+    heuristicService.evaluatePlayer(map, player);
   }
 
 }

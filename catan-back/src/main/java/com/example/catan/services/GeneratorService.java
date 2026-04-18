@@ -1,10 +1,9 @@
 package com.example.catan.services;
 
-import com.example.catan.models.enums.Playstyle;
+import com.example.catan.models.enums.Tactic;
 import com.example.catan.models.enums.Resource;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
-import com.example.catan.models.map.Vertex;
 import com.example.catan.utils.ConfigLoader;
 import com.example.catan.utils.MapGeneratorUtil;
 import org.springframework.stereotype.Service;
@@ -30,15 +29,15 @@ public class GeneratorService {
     return currentMap;
   }
 
-  public synchronized Map generateNew(List<Playstyle> playstyles) {
-    currentMap = generateInternal(playstyles);
+  public synchronized Map generateNew(List<Tactic> tactics) {
+    currentMap = generateInternal(tactics);
     return currentMap;
   }
 
-  private Map generateInternal(List<Playstyle> playstyles) {
+  private Map generateInternal(List<Tactic> tactics) {
     final int maxAttempts = 200;
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
-      Map map = new Map(playstyles);
+      Map map = new Map(tactics);
       HashMap<String, Integer> resources = ConfigLoader.loadResourceMap();
       HashMap<Integer, Integer> numbers = ConfigLoader.loadNumberMap();
       HashMap<Integer, Integer> productionByNumber = ConfigLoader.loadProductionMap();

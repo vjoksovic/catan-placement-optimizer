@@ -71,7 +71,7 @@ public final class ResponseMapper {
     for (Player player : players) {
       PlayerDto dto = new PlayerDto();
       dto.setId(player.getId());
-      dto.setPlaystyle(player.getPlaystyle());
+      dto.setTactic(player.getTactic());
       dto.setSettlements(player.getSettlements());
       dto.setScore(player.getScore());
       out.add(dto);

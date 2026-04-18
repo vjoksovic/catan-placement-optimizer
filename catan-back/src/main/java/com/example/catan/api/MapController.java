@@ -1,6 +1,6 @@
 package com.example.catan.api;
 
-import com.example.catan.dto.PlaystyleDto;
+import com.example.catan.dto.TacticDto;
 import com.example.catan.dto.Response;
 import com.example.catan.dto.ResponseMapper;
 import com.example.catan.services.GeneratorService;
@@ -26,8 +26,8 @@ public class MapController {
   }
 
   @PostMapping("/generate")
-  public Response generate(@RequestBody PlaystyleDto request) {
-    com.example.catan.models.map.Map map = generatorService.generateNew(request.getPlaystyles());
+  public Response generate(@RequestBody TacticDto request) {
+    com.example.catan.models.map.Map map = generatorService.generateNew(request.getTactics());
     heuristicService.calculateHeuristic(map);
     return ResponseMapper.from(map);
   }

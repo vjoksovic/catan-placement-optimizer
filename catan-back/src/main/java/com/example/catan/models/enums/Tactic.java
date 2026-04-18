@@ -8,7 +8,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Getter
-public enum Playstyle {
+public enum Tactic {
   BALANCED,
   PRODUCTION_FOCUSED,
   SCARCITY_FOCUSED;
@@ -26,15 +26,15 @@ public enum Playstyle {
   }
 
   private static void applyConfiguredWeights() {
-    Map<String, Map<String, Double>> cfg = ConfigLoader.loadPlaystyleWeights();
-    for (Playstyle p : values()) {
+    Map<String, Map<String, Double>> cfg = ConfigLoader.loadTacticWeights();
+    for (Tactic p : values()) {
       Map<String, Double> w = cfg.get(p.name());
       if (w == null || w.isEmpty()) {
-        throw new IllegalStateException("heuristic.json: missing playstyleWeights." + p.name());
+        throw new IllegalStateException("heuristic.json: missing tacticWeights." + p.name());
       }
       for (String key : WEIGHT_KEYS) {
         if (!w.containsKey(key)) {
-          throw new IllegalStateException("heuristic.json: playstyleWeights." + p.name() + " missing " + key);
+          throw new IllegalStateException("heuristic.json: tacticWeights." + p.name() + " missing " + key);
         }
       }
       p.productionWeight = w.get("productionWeight");
