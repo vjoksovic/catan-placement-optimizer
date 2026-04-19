@@ -104,24 +104,12 @@ public class MapService {
       if (neighbour.isSettled() || player.getPlannedSettments().contains(neighbour.getId())) 
         continue;
       double heuristic = vertexService.getHeuristicByPlayer(neighbour, player);
-      if (heuristic > bestHeuristic) 
+      if (heuristic > bestHeuristic) {
         bestHeuristic = heuristic;
         bestEntry.put(neighbour, heuristic);
-    }
-    return bestEntry;
-  }
-
-  public Vertex findSettlement(Map map, Player player) {
-    java.util.Map<Vertex, Double> heuristics = getHeuristicsByPlayer(map, player);
-    double bestHeuristic = 0;
-    Vertex bestSettlement = null;
-    for (java.util.Map.Entry<Vertex, Double> entry : heuristics.entrySet()) {
-      if (entry.getValue() > bestHeuristic) {
-        bestHeuristic = entry.getValue();
-        bestSettlement = entry.getKey();
       }
     }
-    return bestSettlement;
+    return bestEntry;
   }
 
   public void assignHeatmapRatings(Map map) {

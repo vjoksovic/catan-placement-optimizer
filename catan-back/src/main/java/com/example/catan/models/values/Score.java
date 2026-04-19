@@ -26,4 +26,8 @@ public class Score {
     this.scarcityScore = MathUtil.round2(scarcityValue);
     this.totalScore = MathUtil.round2(this.productionScore + this.diversityScore + this.scarcityScore);
   }
+
+  public double calculateTotal(Heuristic heuristic) {
+    return MathUtil.round2(heuristic.getProductionValue() + (heuristic.getResourceDiversityValue() + heuristic.getNumberDiversityValue()) / 2 + heuristic.getScarcityValue());
+  }
 }

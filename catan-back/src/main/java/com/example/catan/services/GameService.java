@@ -32,7 +32,7 @@ public class GameService {
   }
 
   private void placeSettlement(Map map, Player player) {
-    Vertex settlement = mapService.findSettlement(map, player);
+    Vertex settlement = heuristicService.findSettlement(map, player);
     player.getSettlements().add(settlement.getId());
     vertexService.setSettled(map, settlement);
     placeRoad(map, settlement, player);
@@ -45,7 +45,7 @@ public class GameService {
   }
 
   private void updateScore(Map map, Player player) {
-    heuristicService.evaluatePlayer(map, player);
+    heuristicService.evaluatePlayer(map, player, true);
   }
 
 }

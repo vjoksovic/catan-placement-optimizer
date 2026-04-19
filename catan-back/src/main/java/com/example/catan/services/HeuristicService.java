@@ -44,7 +44,7 @@ public class HeuristicService {
     mapService.processPlayerHeuristics(map);
   }
 
-  public void evaluatePlayer(Map map, Player player) {
+  public double evaluatePlayer(Map map, Player player, boolean isSettled) {
     List<Field> fields = new ArrayList<>();
     for (Integer vertexId : player.getSettlements()) {
       fields.addAll(vertexService.getFieldsByVertex(map, vertexId));
@@ -55,7 +55,26 @@ public class HeuristicService {
     double scarcityValue = calculateScarcity(map, fields);
     Heuristic heuristic = new Heuristic(productionValue, resourceDiversityValue, numberDiversityValue, scarcityValue);
     MathUtil.roundHeuristic(heuristic, scalingContext, player.getSettlements().size());
-    player.getScore().setValues(heuristic.getProductionValue(), heuristic.getResourceDiversityValue(), heuristic.getNumberDiversityValue(), heuristic.getScarcityValue());
+    if (isSettled)
+      player.getScore().setValues(heuristic.getProductionValue(), heuristic.getResourceDiversityValue(), heuristic.getNumberDiversityValue(), heuristic.getScarcityValue());
+    return player.getScore().calculateTotal(heuristic);
+  }
+
+  public Vertex findSettlement(Map map, Player player) {
+    java.util.Map<Vertex, Double> heuristics = mapService.getHeuristicsByPlayer(map, player);
+    double bestHeuristic = 0;
+    Vertex bestSettlement = null;
+    for (java.util.Map.Entry<Vertex, Double> entry : heuristics.entrySet()) {
+      if (entry.getValue() == 0) continue;
+      player.getSettlements().add(entry.getKey().getId());
+      double score = evaluatePlayer(map, player, false);
+      if (score > bestHeuristic) {
+        bestHeuristic = score;
+        bestSettlement = entry.getKey();
+      }
+      player.getSettlements().remove(player.getSettlements().size()-1);
+    }
+    return bestSettlement;
   }
 
   private void calculateVertexHeuristic(Map map, Vertex vertex) {
