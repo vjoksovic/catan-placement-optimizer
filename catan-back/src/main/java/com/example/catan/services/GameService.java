@@ -45,7 +45,7 @@ public class GameService {
   }
 
   private void updateScore(Map map, Player player) {
-    heuristicService.evaluatePlayer(map, player, true);
+    mapService.evaluatePlayer(map, player, true);
   }
 
 }

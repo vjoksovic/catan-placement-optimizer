@@ -1,17 +1,13 @@
 package com.example.catan.services;
 
-
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
+import java.util.Map.Entry;
 
-import com.example.catan.models.enums.Resource;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
 import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
-import com.example.catan.models.values.Heuristic;
 import com.example.catan.utils.ConfigLoader;
 import com.example.catan.utils.MathUtil;
 
@@ -20,17 +16,18 @@ import org.springframework.stereotype.Service;
 @Service
 public class HeuristicService {
 
+  private static final int N_MAX_CANDIDATES = 5;
   private final MapService mapService;
   private final VertexService vertexService;
-  private final java.util.Map<String, Double> scarcityMultipliers;
-  private final java.util.Map<String, Double> numberMultipliers;
+  private final FieldService fieldService;
+  private final CopyService copyService;
   private final MathUtil.HeuristicScalingContext scalingContext;
 
-  public HeuristicService(MapService mapService, VertexService vertexService) {
+  public HeuristicService(MapService mapService, VertexService vertexService, FieldService fieldService, CopyService copyService) {
     this.mapService = mapService;
     this.vertexService = vertexService;
-    this.scarcityMultipliers = ConfigLoader.loadScarcityResourceMultipliers();
-    this.numberMultipliers = ConfigLoader.loadNumberMultipliers();
+    this.fieldService = fieldService;
+    this.copyService = copyService;
     java.util.Map<String, Double> maxValues = ConfigLoader.loadHeuristicScalingMaxValues();
     java.util.Map<String, Double> targetShares = ConfigLoader.loadHeuristicScalingTargetShares();
     this.scalingContext = MathUtil.buildHeuristicScalingContext(maxValues, targetShares);
@@ -44,98 +41,101 @@ public class HeuristicService {
     mapService.processPlayerHeuristics(map);
   }
 
-  public double evaluatePlayer(Map map, Player player, boolean isSettled) {
-    List<Field> fields = new ArrayList<>();
-    for (Integer vertexId : player.getSettlements()) {
-      fields.addAll(vertexService.getFieldsByVertex(map, vertexId));
+  public Vertex findSettlement(Map map, Player player) {
+    Map simulationMap = copyService.deepCopyMap(map);
+    List<Player> players = simulationMap.getPlayers();
+    int currentPlayer = getPlayer(players, player.getId());
+    if (currentPlayer < 0) 
+      return null;
+    Player simulationPlayer = players.get(currentPlayer);
+    List<Integer> nMaxCandidates = getTopSettlementCandidates(simulationMap, simulationPlayer);
+    double bestHeuristic = Double.NEGATIVE_INFINITY;
+    Integer bestSettlement = null;
+    for (Integer candidate : nMaxCandidates) {
+      Map branchMap = copyService.deepCopyMap(simulationMap);
+      Player branchPlayer = branchMap.getPlayers().get(currentPlayer);
+      applySettlementMove(branchMap, branchPlayer, candidate);
+      double[] scores = runNMax(branchMap, getNextPlayer(currentPlayer, players.size()), players.size());
+      if (scores[currentPlayer] > bestHeuristic) {
+        bestHeuristic = scores[currentPlayer];
+        bestSettlement = candidate;
+      }
     }
-    double productionValue = calculateProduction(fields);
-    double resourceDiversityValue = calculateResourceDiversity(fields);
-    double numberDiversityValue = calculateNumberDiversity(fields);
-    double scarcityValue = calculateScarcity(map, fields);
-    Heuristic heuristic = new Heuristic(productionValue, resourceDiversityValue, numberDiversityValue, scarcityValue);
-    MathUtil.roundHeuristic(heuristic, scalingContext, player.getSettlements().size());
-    if (isSettled)
-      player.getScore().setValues(heuristic.getProductionValue(), heuristic.getResourceDiversityValue(), heuristic.getNumberDiversityValue(), heuristic.getScarcityValue());
-    return player.getScore().calculateTotal(heuristic);
+    return bestSettlement == null ? null : vertexService.getVertex(map, bestSettlement);
   }
 
-  public Vertex findSettlement(Map map, Player player) {
-    java.util.Map<Vertex, Double> heuristics = mapService.getHeuristicsByPlayer(map, player);
-    double bestHeuristic = 0;
-    Vertex bestSettlement = null;
-    for (java.util.Map.Entry<Vertex, Double> entry : heuristics.entrySet()) {
-      if (entry.getValue() == 0) continue;
-      player.getSettlements().add(entry.getKey().getId());
-      double score = evaluatePlayer(map, player, false);
-      if (score > bestHeuristic) {
-        bestHeuristic = score;
-        bestSettlement = entry.getKey();
-      }
-      player.getSettlements().remove(player.getSettlements().size()-1);
+  private double[] runNMax(Map map, int currentPlayerIndex, int depth) {
+    List<Player> players = map.getPlayers();
+    if (depth == 0) {
+      return evaluateAllPlayers(map);
     }
-    return bestSettlement;
+    Player currentPlayer = players.get(currentPlayerIndex);
+    List<Integer> candidates = getTopSettlementCandidates(map, currentPlayer);
+    if (candidates.isEmpty()) {
+      return evaluateAllPlayers(map);
+    }
+    double[] bestVector = null;
+    for (Integer candidateId : candidates) {
+      Map childMap = copyService.deepCopyMap(map);
+      Player childPlayer = childMap.getPlayers().get(currentPlayerIndex);
+      applySettlementMove(childMap, childPlayer, candidateId);
+      double[] childVector = runNMax(childMap, getNextPlayer(currentPlayer.getId(), players.size()), depth - 1);
+      if (bestVector == null || childVector[currentPlayerIndex] > bestVector[currentPlayerIndex]) {
+        bestVector = childVector;
+      }
+    }
+    return bestVector == null ? evaluateAllPlayers(map) : bestVector;
+  }
+
+  private List<Integer> getTopSettlementCandidates(Map map, Player player) {
+    java.util.Map<Vertex, Double> heuristics = mapService.getHeuristicsByPlayer(map, player);
+    return heuristics.entrySet().stream()
+      .filter(entry -> entry.getValue() > 0)
+      .sorted(Entry.<Vertex, Double>comparingByValue(Comparator.reverseOrder()))
+      .limit(N_MAX_CANDIDATES)
+      .map(entry -> entry.getKey().getId())
+      .toList();
+  }
+
+  private double[] evaluateAllPlayers(Map map) {
+    List<Player> players = map.getPlayers();
+    double[] scores = new double[players.size()];
+    for (int i = 0; i < players.size(); i++) {
+      scores[i] = mapService.evaluatePlayer(map, players.get(i), false);
+    }
+    return scores;
+  }
+
+  private void applySettlementMove(Map map, Player player, int settlementId) {
+    player.getSettlements().add(settlementId);
+    Vertex settlement = vertexService.getVertex(map, settlementId);
+    settlement.setSettled(true);
+    for (Integer neighbourId : settlement.getRoadFlags().keySet()) {
+      Vertex neighbour = vertexService.getVertex(map, neighbourId);
+      neighbour.setSettled(true);
+    }
+  }
+
+  private int getNextPlayer(int currentPlayer, int playerCount) {
+    return (currentPlayer + 1) % playerCount;
+  }
+
+  private int getPlayer(List<Player> players, int targetPlayerId) {
+    for (int i = 0; i < players.size(); i++) {
+      if (players.get(i).getId() == targetPlayerId) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   private void calculateVertexHeuristic(Map map, Vertex vertex) {
     List<Field> fields = vertexService.getFieldsByVertex(map, vertex.getId());
-    vertex.getValue().setProductionValue(calculateProduction(fields));
-    vertex.getValue().setResourceDiversityValue(calculateResourceDiversity(fields));
-    vertex.getValue().setNumberDiversityValue(calculateNumberDiversity(fields));
-    vertex.getValue().setScarcityValue(calculateScarcity(map, fields));
+    vertex.getValue().setProductionValue(fieldService.  calculateProduction(fields));
+    vertex.getValue().setResourceDiversityValue(fieldService.calculateResourceDiversity(fields));
+    vertex.getValue().setNumberDiversityValue(fieldService.calculateNumberDiversity(fields));
+    vertex.getValue().setScarcityValue(fieldService.calculateScarcity(map, fields));
     MathUtil.roundHeuristic(vertex.getValue(), scalingContext, 1);
   }
 
-  private double calculateProduction(List<Field> fields) {
-    double productionValue = 0;
-    for (Field field : fields) {
-      productionValue += calulateFieldProductionValue(field);
-    }
-    return productionValue;
-  }
-
-  private double calulateFieldProductionValue(Field field) {
-    return field.getProductionValue() * field.getResource().getWeight();
-  }
-
-  private double calculateResourceDiversity(List<Field> fields) {
-    Set<Resource> resources = new HashSet<>();
-    double resourceDiversityValue = 0;
-    for (Field field : fields) {
-      if (field.getResource() == Resource.DESERT) continue;
-      if (resources.add(field.getResource())) 
-        resourceDiversityValue += field.getResource().getWeight();
-    }
-    return resourceDiversityValue;
-  }
-
-  private double calculateNumberDiversity(List<Field> fields) {
-    Set<Integer> numbers = new HashSet<>();
-    double numberDiversityValue = 0;
-    for (Field field : fields) {
-      if (field.getResource() == Resource.DESERT) continue;
-      double numberMultiplier = MathUtil.resolveNumberMultiplier(numberMultipliers, field.getFieldNumber());
-      if (numbers.contains(field.getFieldNumber())) {
-        double penalty = MathUtil.duplicateNumberPenalty(calulateFieldProductionValue(field), numberMultiplier);
-        numberDiversityValue -= penalty;
-      } else {
-        numbers.add(field.getFieldNumber());
-        numberDiversityValue += numberMultiplier;
-      }
-    }
-    return numberDiversityValue;
-  }
-
-  private double calculateScarcity(Map map, List<Field> fields) {
-    double scarcityValue = 0;
-    double maxProduction = mapService.getMaxProduction(map);
-    for (Field field : fields) {
-      double minProduction = mapService.getMinProduction(map, field);
-      if (minProduction > 0.0) {
-        scarcityValue = MathUtil.round2(maxProduction / minProduction) * scarcityMultipliers.get(field.getResource().name());
-        return scarcityValue;
-      }
-    }
-    return scarcityValue;
-  }
 }

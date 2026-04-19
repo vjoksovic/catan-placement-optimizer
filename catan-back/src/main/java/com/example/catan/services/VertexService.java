@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import com.example.catan.models.enums.Tactic;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
-import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
 
 @Service
@@ -44,19 +43,6 @@ public class VertexService {
 
   public Vertex getVertex(Map map, int vertexId) {
     return map.getVertices().get(vertexId);
-  }
-
-  public double getHeuristicByPlayer(Vertex vertex, Player player) {
-    switch (player.getTactic()) {
-      case BALANCED:
-        return vertex.getValue().getBalancedValue();
-      case PRODUCTION_FOCUSED:
-        return vertex.getValue().getProductionFocusedValue();
-      case SCARCITY_FOCUSED:
-        return vertex.getValue().getScarcityFocusedValue();
-      default:
-        return 0;
-    }
   }
 
   public void setSettled(Map map, Vertex vertex) {

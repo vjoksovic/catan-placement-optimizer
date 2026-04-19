@@ -1,26 +1,33 @@
 package com.example.catan.services;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 import com.example.catan.models.map.Map;
 import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
+import com.example.catan.models.values.Heuristic;
 import com.example.catan.utils.ConfigLoader;
 import com.example.catan.utils.MathUtil;
 
 import com.example.catan.models.map.Field;
 import com.example.catan.models.enums.HeatmapRating;
-import com.example.catan.models.enums.Resource;
 import org.springframework.stereotype.Service;
 
 @Service
 public class MapService {
 
   private final VertexService vertexService;
+  private final FieldService fieldService;
+  private final MathUtil.HeuristicScalingContext scalingContext;
   
-  public MapService(VertexService vertexService) {
+  public MapService(VertexService vertexService, FieldService fieldService) {
     this.vertexService = vertexService;
+    this.fieldService = fieldService;
+    java.util.Map<String, Double> maxValues = ConfigLoader.loadHeuristicScalingMaxValues();
+    java.util.Map<String, Double> targetShares = ConfigLoader.loadHeuristicScalingTargetShares();
+    this.scalingContext = MathUtil.buildHeuristicScalingContext(maxValues, targetShares);
   }
 
   public void processPlayerHeuristics(Map map) {
@@ -49,20 +56,11 @@ public class MapService {
     }
   }
 
-  public double getMaxProduction(Map map) {
-    int maxProduction = 0;
-    for (java.util.Map.Entry<Resource, Integer> entry : map.getProduction().entrySet()) {
-      maxProduction = Math.max(maxProduction, entry.getValue());
-    }
-    return maxProduction;
-  }
-
-  public double getMinProduction(Map map, Field field) {
-    for (java.util.Map.Entry<Resource, Integer> entry : map.getProduction().entrySet()) {
-      if (entry.getKey() == field.getResource() && entry.getKey() != Resource.DESERT && entry.getValue() < 10.0)
-        return entry.getValue();
-    }
-    return 0.0;
+  private double simulateSettlement(Map map, Player player, Vertex vertex) {
+    player.getSettlements().add(vertex.getId());
+    double score = evaluatePlayer(map, player, false);
+    player.getSettlements().remove(player.getSettlements().size()-1);
+    return score;
   }
 
   public java.util.Map<Vertex, Double> getHeuristicsByPlayer(Map map, Player player) {
@@ -70,10 +68,28 @@ public class MapService {
     for (Vertex vertex : map.getVertices()) {
       if (vertex.isSettled() || player.getPlannedSettments().contains(vertex.getId())) 
         heuristics.put(vertex, 0.0);
-      else 
-        heuristics.put(vertex, vertexService.getHeuristicByPlayer(vertex, player));
+      else {
+        double score = simulateSettlement(map, player, vertex);
+        heuristics.put(vertex, score);
+      }
     }
     return heuristics;
+  }
+
+  public double evaluatePlayer(Map map, Player player, boolean isSettled) {
+    List<Field> fields = new ArrayList<>();
+    for (Integer vertexId : player.getSettlements()) {
+      fields.addAll(vertexService.getFieldsByVertex(map, vertexId));
+    }
+    double productionValue = fieldService.calculateProduction(fields);
+    double resourceDiversityValue = fieldService.calculateResourceDiversity(fields);
+    double numberDiversityValue = fieldService.calculateNumberDiversity(fields);
+    double scarcityValue = fieldService.calculateScarcity(map, fields);
+    Heuristic heuristic = new Heuristic(productionValue, resourceDiversityValue, numberDiversityValue, scarcityValue);
+    MathUtil.roundHeuristic(heuristic, scalingContext, player.getSettlements().size());
+    if (isSettled)
+      player.getScore().setValues(heuristic.getProductionValue(), heuristic.getResourceDiversityValue(), heuristic.getNumberDiversityValue(), heuristic.getScarcityValue());
+    return player.getScore().calculateTotal(heuristic);
   }
 
   public Vertex findRoute(Map map, Vertex vertex, Player player) {
@@ -103,7 +119,7 @@ public class MapService {
       Vertex neighbour = vertexService.getVertex(map, neighbourId);
       if (neighbour.isSettled() || player.getPlannedSettments().contains(neighbour.getId())) 
         continue;
-      double heuristic = vertexService.getHeuristicByPlayer(neighbour, player);
+      double heuristic = getHeuristicsByPlayer(map, player).get(neighbour);
       if (heuristic > bestHeuristic) {
         bestHeuristic = heuristic;
         bestEntry.put(neighbour, heuristic);
