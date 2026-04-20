@@ -7,7 +7,6 @@ import { MapFacadeService } from '../../services/map/map-facade.service';
   standalone: true,
   imports: [MapSidebarComponent],
   templateUrl: './map-graph-view.component.html',
-  styleUrl: './map-graph-view.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MapGraphViewComponent {

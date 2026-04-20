@@ -6,6 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Heuristic {
+  
   private double productionValue;
   private double resourceDiversityValue;
   private double numberDiversityValue;

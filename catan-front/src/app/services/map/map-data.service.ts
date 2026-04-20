@@ -29,7 +29,8 @@ export class MapDataService {
   readonly mapGenerated = this.hasGeneratedMap.asReadonly();
   readonly generateMapLoading = signal(false);
   readonly generateMapFailed = signal(false);
-  private nextTurnTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Bumped in {@link stopTurnLoop} so in-flight turn chains exit between API calls. */
+  private turnLoopGeneration = 0;
   private readonly placementRevealInProgressState = signal(false);
   readonly placementRevealInProgress = this.placementRevealInProgressState.asReadonly();
   private readonly activeTurnNumberState = signal<number | null>(null);
@@ -66,7 +67,8 @@ export class MapDataService {
     this.generateMapFailed.set(false);
     this.placementRevealInProgressState.set(true);
     this.gameOverState.set(false);
-    await this.playTurnAndSchedule(0);
+    const generation = this.turnLoopGeneration;
+    await this.playTurnAndSchedule(0, generation);
   }
 
   abortPlacementReveal(): void {
@@ -82,10 +84,19 @@ export class MapDataService {
     return { settlements: [], roads: [] };
   }
 
-  private async playTurnAndSchedule(turnNumber: number): Promise<void> {
+  private async playTurnAndSchedule(
+    turnNumber: number,
+    generation: number,
+  ): Promise<void> {
+    if (generation !== this.turnLoopGeneration) {
+      return;
+    }
     try {
       this.activeTurnNumberState.set(turnNumber);
       const dto = await firstValueFrom(this.mapApi.playTurn(turnNumber));
+      if (generation !== this.turnLoopGeneration) {
+        return;
+      }
       const nextMap = boardDtoToCatanMap(dto.map);
       this.mapState.set(nextMap);
       this.hasGeneratedMap.set(true);
@@ -95,9 +106,10 @@ export class MapDataService {
         this.stopTurnLoop();
         return;
       }
-      this.nextTurnTimer = setTimeout(() => {
-        void this.playTurnAndSchedule(dto.nextTurnNumber as number);
-      }, 2000);
+      if (generation !== this.turnLoopGeneration) {
+        return;
+      }
+      await this.playTurnAndSchedule(dto.nextTurnNumber as number, generation);
     } catch {
       this.generateMapFailed.set(true);
       this.stopTurnLoop();
@@ -105,10 +117,7 @@ export class MapDataService {
   }
 
   private stopTurnLoop(): void {
-    if (this.nextTurnTimer !== null) {
-      clearTimeout(this.nextTurnTimer);
-      this.nextTurnTimer = null;
-    }
+    this.turnLoopGeneration++;
     this.placementRevealInProgressState.set(false);
     this.persistToSession();
   }

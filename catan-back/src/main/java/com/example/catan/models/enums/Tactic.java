@@ -9,6 +9,7 @@ import java.util.Set;
 
 @Getter
 public enum Tactic {
+  
   BALANCED,
   PRODUCTION_FOCUSED,
   SCARCITY_FOCUSED;

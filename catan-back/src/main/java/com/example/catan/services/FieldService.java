@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import com.example.catan.models.enums.Resource;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
+import com.example.catan.models.map.Vertex;
 import com.example.catan.utils.ConfigLoader;
 import com.example.catan.utils.MathUtil;
 
@@ -17,10 +18,16 @@ public class FieldService {
 
   private final java.util.Map<String, Double> scarcityMultipliers;
   private final java.util.Map<String, Double> numberMultipliers;
+  private final MathUtil.HeuristicScalingContext scalingContext;
+  private final VertexService vertexService;
 
-  public FieldService() {
+  public FieldService(VertexService vertexService) {
+    this.vertexService = vertexService;
     this.scarcityMultipliers = ConfigLoader.loadScarcityResourceMultipliers();
     this.numberMultipliers = ConfigLoader.loadNumberMultipliers();
+    java.util.Map<String, Double> maxValues = ConfigLoader.loadHeuristicScalingMaxValues();
+    java.util.Map<String, Double> targetShares = ConfigLoader.loadHeuristicScalingTargetShares();
+    this.scalingContext = MathUtil.buildHeuristicScalingContext(maxValues, targetShares);
   }
 
   public double calculateProduction(List<Field> fields) {
@@ -90,5 +97,14 @@ public class FieldService {
         return entry.getValue();
     }
     return 0.0;
+  }
+
+  public void calculateVertexHeuristic(Map map, Vertex vertex) {
+    List<Field> fields = vertexService.getFieldsByVertex(map, vertex.getId());
+    vertex.getValue().setProductionValue(calculateProduction(fields));
+    vertex.getValue().setResourceDiversityValue(calculateResourceDiversity(fields));
+    vertex.getValue().setNumberDiversityValue(calculateNumberDiversity(fields));
+    vertex.getValue().setScarcityValue(calculateScarcity(map, fields));
+    MathUtil.roundHeuristic(vertex.getValue(), scalingContext, 1);
   }
 }

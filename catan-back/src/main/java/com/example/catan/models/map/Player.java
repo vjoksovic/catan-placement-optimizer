@@ -12,6 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Player {
+  
   private int id;
   private Tactic tactic;
   private List<Integer> settlements;

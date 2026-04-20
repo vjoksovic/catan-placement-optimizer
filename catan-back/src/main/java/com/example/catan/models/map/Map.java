@@ -13,6 +13,7 @@ import lombok.Setter;
 
 @Getter @Setter
 public class Map {
+  
   private List<Field> fields;
   private List<Vertex> vertices;
   private List<Player> players;
@@ -22,7 +23,7 @@ public class Map {
     List<List<Integer>> neighbourLists = ConfigLoader.loadFieldNeighbours();
     List<List<Integer>> fieldVertexIds = ConfigLoader.loadFieldVertexIds();
     if (fieldVertexIds.size() != neighbourLists.size()) {
-      throw new IllegalArgumentException("catan-fields.json: neighbours/vertices field count mismatch");
+      throw new IllegalArgumentException("fields.json: neighbours/vertices field count mismatch");
     }
     List<Field> list = new ArrayList<>(neighbourLists.size());
     for (int i = 0; i < neighbourLists.size(); i++) {

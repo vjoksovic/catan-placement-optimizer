@@ -8,6 +8,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Score {
+  
   private double productionScore;
   private double diversityScore;
   private double scarcityScore;

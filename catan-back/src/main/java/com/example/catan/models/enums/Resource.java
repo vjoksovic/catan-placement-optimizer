@@ -8,11 +8,12 @@ import java.util.Map;
 
 @Getter
 public enum Resource {
-  WOOD(1),
-  BRICK(1),
-  SHEEP(0.8),
-  WHEAT(1.2),
-  ORE(1.1),
+  
+  WOOD(0),
+  BRICK(0),
+  SHEEP(0),
+  WHEAT(0),
+  ORE(0),
   DESERT(0);
 
   private double weight;

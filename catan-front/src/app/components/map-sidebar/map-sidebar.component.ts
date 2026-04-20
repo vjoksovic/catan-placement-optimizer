@@ -71,12 +71,23 @@ export class MapSidebarComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  openGenerateDialog(): void {
+  /** Opens tactics popup only — values are saved to localStorage (also on each change). */
+  openTacticsDialog(): void {
     if (this.generateMapDisabled) {
       return;
     }
     this.applyStoredTactics();
     this.generateDialogOpen = true;
+    this.cdr.markForCheck();
+  }
+
+  /** Reads latest tactics from local storage and requests map generation (no popup). */
+  runGenerateMap(): void {
+    if (this.generateMapDisabled) {
+      return;
+    }
+    this.applyStoredTactics();
+    this.generateMap.emit(this.seatTactics);
     this.cdr.markForCheck();
   }
 
@@ -142,9 +153,18 @@ export class MapSidebarComponent implements OnInit {
     this.cdr.markForCheck();
   }
 
-  confirmGenerate(): void {
-    this.generateDialogOpen = false;
+  /** Persist tactics and close popup (does not generate). */
+  saveTacticsDialog(): void {
     this.persistTactics();
-    this.generateMap.emit(this.seatTactics);
+    this.generateDialogOpen = false;
+    this.cdr.markForCheck();
+  }
+
+  /** Footer generate / regenerate — “Regenerate” when a board already exists. */
+  primaryMapActionLabel(): string {
+    if (this.generateMapLoading) {
+      return this.mapGenerated ? 'Regenerating…' : 'Generating…';
+    }
+    return this.mapGenerated ? 'Regenerate map' : 'Generate map';
   }
 }

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.example.catan.models.enums.Tactic;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
+import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
 
 @Service
@@ -48,6 +49,16 @@ public class VertexService {
   public void setSettled(Map map, Vertex vertex) {
     vertex.setSettled(true);
     for (Integer neighbourId : vertex.getRoadFlags().keySet()) {
+      Vertex neighbour = getVertex(map, neighbourId);
+      neighbour.setSettled(true);
+    }
+  }
+
+  public void simulateSettlementMove(Map map, Player player, int settlementId) {
+    player.getSettlements().add(settlementId);
+    Vertex settlement = getVertex(map, settlementId);
+    settlement.setSettled(true);
+    for (Integer neighbourId : settlement.getRoadFlags().keySet()) {
       Vertex neighbour = getVertex(map, neighbourId);
       neighbour.setSettled(true);
     }

@@ -2,13 +2,8 @@ package com.example.catan.models.enums;
 
 import java.util.Objects;
 
-/**
- * Vertex heat tier derived from {@link com.example.catan.models.values.Heuristic#getTotalValue()}
- * normalized across all vertices on the map (min–max → five buckets).
- * <p>Bucket boundaries come from {@code catan-heuristic.json} ({@code heatmapRatingCaps}) via
- * {@link com.example.catan.utils.ConfigLoader#loadHeatmapRatingCaps()}.</p>
- */
 public enum HeatmapRating {
+  
   VERY_LOW,
   LOW,
   MEDIUM,

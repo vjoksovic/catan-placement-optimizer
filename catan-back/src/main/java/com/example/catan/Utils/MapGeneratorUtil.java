@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.example.catan.models.enums.Resource;
+import com.example.catan.models.enums.HeatmapRating;
+import com.example.catan.models.map.Map;
+import com.example.catan.models.map.Vertex;
 
 public class MapGeneratorUtil {
   
@@ -71,5 +74,24 @@ public class MapGeneratorUtil {
   public static int randomNumber() {
     int[] numbers = {0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12};
     return numbers[randomBetween(0, numbers.length - 1)];
+  }
+
+  public static void assignHeatmapRatings(Map map) {
+    List<Vertex> vertices = map.getVertices();
+    if (vertices == null || vertices.isEmpty()) {
+      return;
+    }
+    double minTotal = Double.POSITIVE_INFINITY;
+    double maxTotal = Double.NEGATIVE_INFINITY;
+    for (Vertex v : vertices) {
+      double t = v.getValue().getOverallValue();
+      minTotal = Math.min(minTotal, t);
+      maxTotal = Math.max(maxTotal, t);
+    }
+    double[] heatmapCaps = ConfigLoader.loadHeatmapRatingCaps();
+    for (Vertex v : vertices) {
+      double overallValue = v.getValue().getOverallValue();
+      v.setHeatmapRating(HeatmapRating.fromBoardTotals(overallValue, minTotal, maxTotal, heatmapCaps));
+    }
   }
 }

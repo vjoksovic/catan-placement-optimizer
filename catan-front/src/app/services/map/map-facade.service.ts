@@ -22,7 +22,8 @@ import {
 import type { PlayerHeuristicRow } from '../../models/map.interface';
 
 const BOARD_GRAPH = buildBoardGraph();
-const NEUTRAL_FIELD_FILL = 'rgba(88, 106, 118, 0.55)';
+/** Ungenerated map — same slate family as sidebar panels. */
+const NEUTRAL_FIELD_FILL = 'rgba(42, 58, 68, 0.48)';
 const UI_SESSION_STORAGE_KEY = 'catan.session.ui.v1';
 
 type PersistedUiState = {
@@ -399,9 +400,11 @@ export class MapFacadeService {
   }
 
   async startGame(): Promise<void> {
+    this.gameStarted.set(true);
+    this.persistUiToSession();
     await this.mapData.startGame();
-    if (!this.mapData.generateMapFailed()) {
-      this.gameStarted.set(true);
+    if (this.mapData.generateMapFailed()) {
+      this.gameStarted.set(false);
       this.persistUiToSession();
     }
   }

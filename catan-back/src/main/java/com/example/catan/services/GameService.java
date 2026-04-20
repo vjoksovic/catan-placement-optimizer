@@ -11,13 +11,11 @@ import org.springframework.stereotype.Service;
 public class GameService {
 
   private int[] order;
-  private final MapService mapService;
-  private final VertexService vertexService;
+  private final DecisionService decisionService;
   private final HeuristicService heuristicService;
 
-  public GameService(MapService mapService, VertexService vertexService, HeuristicService heuristicService) {
-    this.mapService = mapService;
-    this.vertexService = vertexService;
+  public GameService(DecisionService decisionService, HeuristicService heuristicService) {
+    this.decisionService = decisionService;
     this.heuristicService = heuristicService;
     this.order = ConfigLoader.loadGameOrder();
   }
@@ -32,20 +30,13 @@ public class GameService {
   }
 
   private void placeSettlement(Map map, Player player) {
-    Vertex settlement = heuristicService.findSettlement(map, player);
-    player.getSettlements().add(settlement.getId());
-    vertexService.setSettled(map, settlement);
-    placeRoad(map, settlement, player);
+    Vertex settlement = decisionService.setSettlement(map, player);
+    decisionService.placeRoad(map, settlement, player);
     updateScore(map, player);
   }
 
-  private void placeRoad(Map map, Vertex vertex, Player player) {
-    Vertex bestNeighbour = mapService.findRoute(map, vertex, player);
-    vertex.getRoadFlags().put(bestNeighbour.getId(), true);
-  }
-
   private void updateScore(Map map, Player player) {
-    mapService.evaluatePlayer(map, player, true);
+    heuristicService.evaluatePlayer(map, player, true);
   }
 
 }

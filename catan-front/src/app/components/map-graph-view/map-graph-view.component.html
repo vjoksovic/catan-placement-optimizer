@@ -28,33 +28,28 @@
   <div class="map-stage">
     <svg class="svg" [attr.viewBox]="facade.mapViewBox" preserveAspectRatio="xMidYMid meet">
       <defs>
-        <linearGradient id="sea-fill" x1="0%" y1="100%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#293941" />
-          <stop offset="50%" stop-color="#344854" />
-          <stop offset="100%" stop-color="#232f37" />
-        </linearGradient>
-
+        <!-- Must stay in sync with RESOURCE_TILE_COLOR in map.const.ts -->
         <pattern id="hex-fill-wood" width="14" height="14" patternUnits="userSpaceOnUse">
-          <rect width="14" height="14" fill="#3d5c4f" />
+          <rect width="14" height="14" fill="#3a5248" />
         </pattern>
         <pattern id="hex-fill-brick" width="14" height="14" patternUnits="userSpaceOnUse">
-          <rect width="14" height="14" fill="#8f675c" />
+          <rect width="14" height="14" fill="#7d5a4f" />
         </pattern>
         <pattern id="hex-fill-sheep" width="14" height="14" patternUnits="userSpaceOnUse">
-          <rect width="14" height="14" fill="#5e7a62" />
+          <rect width="14" height="14" fill="#4a6952" />
         </pattern>
         <pattern id="hex-fill-wheat" width="14" height="14" patternUnits="userSpaceOnUse">
-          <rect width="14" height="14" fill="#9c8f52" />
+          <rect width="14" height="14" fill="#8a8244" />
         </pattern>
         <pattern id="hex-fill-ore" width="14" height="14" patternUnits="userSpaceOnUse">
-          <rect width="14" height="14" fill="#6f767e" />
+          <rect width="14" height="14" fill="#545c64" />
         </pattern>
         <pattern id="hex-fill-desert" width="14" height="14" patternUnits="userSpaceOnUse">
-          <rect width="14" height="14" fill="#a68f6b" />
+          <rect width="14" height="14" fill="#877256" />
         </pattern>
       </defs>
 
-      <rect class="sea" x="-2000" y="-2000" width="4000" height="4000" fill="url(#sea-fill)" />
+      <rect class="sea" x="-2000" y="-2000" width="4000" height="4000" />
 
       @for (h of facade.hexViews(); track h.id) {
         <g
@@ -82,7 +77,13 @@
           }
           @if (h.showToken) {
             <g class="token" [class.token--empty]="h.productionNumber === null">
-                <circle class="token-chip" [class.token-chip--empty]="h.productionNumber === null" r="24" cx="0" cy="0" />
+              <circle
+                class="token-chip"
+                [class.token-chip--empty]="h.productionNumber === null"
+                r="24"
+                cx="0"
+                cy="0"
+              />
               @if (h.productionNumber !== null) {
                 <text class="token-num" [class.token-num--hot]="h.tokenHot" x="0" y="0" text-anchor="middle" dominant-baseline="middle">
                   {{ h.productionNumber }}

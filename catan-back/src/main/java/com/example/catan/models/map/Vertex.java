@@ -12,6 +12,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class Vertex {
+  
   private int id;
   private List<Integer> fields;
   private HashMap<Integer, Boolean> roadFlags;

@@ -96,24 +96,6 @@ export function productionPips(productionNumber: number | null): number {
   return table[productionNumber] ?? 0;
 }
 
-export function heatOverlayRgbaNormalized(t: number): string {
-  const x = Math.max(0, Math.min(1, t));
-  // Ordered scale only: dark blue -> dark red (all dark tones).
-  const u = Math.pow(x, 0.92);
-  const c0: [number, number, number] = [46, 66, 104]; // dark blue
-  const c1: [number, number, number] = [71, 63, 95];  // dark indigo
-  const c2: [number, number, number] = [93, 58, 88];  // dark violet-red
-  const c3: [number, number, number] = [112, 52, 72]; // dark red
-
-  const [r, g, b] = u < 0.33
-    ? mixRgb(c0, c1, u / 0.33)
-    : u < 0.66
-      ? mixRgb(c1, c2, (u - 0.33) / 0.33)
-      : mixRgb(c2, c3, (u - 0.66) / 0.34);
-  const a = 0.2 + 0.32 * u;
-  return `rgba(${r},${g},${b},${a})`;
-}
-
 /**
  * Discrete heat tiers (1 = worst … 5 = best). Deep sea slate → blue → teal → jade; chroma and lightness ramp up.
  */
@@ -131,19 +113,6 @@ export function heatOverlayRgbaByPips(pips: number): string {
     default:
       return 'rgb(26 38 48)';
   }
-}
-
-function mixRgb(
-  a: readonly [number, number, number],
-  b: readonly [number, number, number],
-  t: number,
-): [number, number, number] {
-  const x = Math.max(0, Math.min(1, t));
-  return [
-    Math.round(a[0] + (b[0] - a[0]) * x),
-    Math.round(a[1] + (b[1] - a[1]) * x),
-    Math.round(a[2] + (b[2] - a[2]) * x),
-  ];
 }
 
 export function resourceRowsOnMap(map: CatanMap): ResourceOnMapRow[] {
@@ -171,13 +140,23 @@ export function resourceRowsOnMap(map: CatanMap): ResourceOnMapRow[] {
       }
     }
   }
-  return order.map((resource) => ({
+  const rows = order.map((resource) => ({
     resource,
     label: labels[resource],
     hexes: hexes.get(resource) ?? 0,
     production: production.get(resource) ?? 0,
     tileColor: RESOURCE_TILE_COLOR[resource],
   }));
+  rows.sort((a, b) => {
+    if (b.production !== a.production) {
+      return b.production - a.production;
+    }
+    if (b.hexes !== a.hexes) {
+      return b.hexes - a.hexes;
+    }
+    return a.label.localeCompare(b.label);
+  });
+  return rows;
 }
 
 const SEAT_RESOURCE_WEIGHT: readonly [Record<Resource, number>, Record<Resource, number>, Record<Resource, number>] = [
@@ -344,26 +323,6 @@ export function vertexHeatFillByVertexId(graph: BoardGraph, map: CatanMap): Read
     fills.set(vid, heatOverlayRgbaByPips(g));
   }
   return fills;
-}
-
-/**
- * First hex (by id) that contains this vertex → field number and corner spot 1–6 (for UI labels).
- */
-export function fieldSpotForVertex(
-  vertexId: number,
-  map: CatanMap,
-  graph: BoardGraph,
-): { fieldNumber: number; spot: number } | null {
-  const hexes = [...map.hexes].sort((a, b) => a.id - b.id);
-  for (const h of hexes) {
-    const corners = h.vertexIds?.length ? [...h.vertexIds] : graph.hexCornerVertexIds[h.id];
-    if (!corners?.length) continue;
-    const idx = corners.indexOf(vertexId);
-    if (idx >= 0) {
-      return { fieldNumber: h.fieldNumber, spot: idx + 1 };
-    }
-  }
-  return null;
 }
 
 export function buildBoardGraph(): BoardGraph {

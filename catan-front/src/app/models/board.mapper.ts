@@ -37,7 +37,7 @@ function isKnownResourceKey(key: string): boolean {
   return Object.prototype.hasOwnProperty.call(RESOURCE_ALIASES, key) || CANONICAL_RESOURCE_SET.has(key);
 }
 
-export function resourceFromApiOrPersisted(raw: string | null | undefined): Resource {
+function resourceFromApiOrPersisted(raw: string | null | undefined): Resource {
   if (raw == null || raw === '') {
     return RESOURCE.Desert;
   }

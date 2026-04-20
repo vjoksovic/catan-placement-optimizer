@@ -74,13 +74,14 @@ export const STATIC_PRODUCTION_BY_HEX: Readonly<Record<number, number | null>> =
   10: 9, 11: 12, 12: 4, 13: 10, 14: 8, 15: 2, 16: 11, 17: 3, 18: 6,
 };
 
+/** Sidebar / map shared — muted, cool slate base so fields match UI panels. */
 export const RESOURCE_TILE_COLOR: Record<Resource, string> = {
-  [RESOURCE.Wood]: '#3d5c4f',
-  [RESOURCE.Brick]: '#8f675c',
-  [RESOURCE.Sheep]: '#5e7a62',
-  [RESOURCE.Wheat]: '#9c8f52',
-  [RESOURCE.Ore]: '#6f767e',
-  [RESOURCE.Desert]: '#a68f6b',
+  [RESOURCE.Wood]: '#3a5248',
+  [RESOURCE.Brick]: '#7d5a4f',
+  [RESOURCE.Sheep]: '#4a6952',
+  [RESOURCE.Wheat]: '#8a8244',
+  [RESOURCE.Ore]: '#545c64',
+  [RESOURCE.Desert]: '#877256',
 };
 
 export const HEX_RESOURCE_PATTERN_FILL: Record<Resource, string> = {
@@ -108,7 +109,7 @@ function mixRgbHex(from: string, to: string, amountTowardTo: number): string {
 }
 
 /** Muted slate blended into resource hues so fields stay readable but subordinate to vertex heat. */
-const HEATMAP_FIELD_MUTE_BG = '#2a323a';
+const HEATMAP_FIELD_MUTE_BG = '#252f38';
 
 /** Solid fills for heatmap mode: same resources as normal play, washed toward slate. */
 export const HEX_RESOURCE_FILL_HEATMAP_WASHED: Record<Resource, string> = {

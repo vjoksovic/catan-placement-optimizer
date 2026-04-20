@@ -86,6 +86,8 @@ public final class ConfigLoader {
   private static final Map<String, Double> DEFAULT_NUMBER_MULTIPLIERS;
   private static final Map<String, Double> DEFAULT_HEURISTIC_SCALING_MAX_VALUES;
   private static final Map<String, Double> DEFAULT_HEURISTIC_SCALING_TARGET_SHARES;
+  private static final int DEFAULT_N_MAX_CANDIDATES = 5;
+  private static final int DEFAULT_MAX_N_DEPTH = 4;
 
   static {
     Map<String, Double> d = new HashMap<>();
@@ -241,6 +243,34 @@ public final class ConfigLoader {
         return DEFAULT_HEATMAP_RATING_CAPS.clone();
       }
       return out;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Number of best settlement candidates explored at each MaxN node.
+   * JSON path: {@code nMaxCandidates}.
+   */
+  public static int loadNMaxCandidates() {
+    try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      int configured = root.path("nMaxCandidates").asInt(DEFAULT_N_MAX_CANDIDATES);
+      return configured > 0 ? configured : DEFAULT_N_MAX_CANDIDATES;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  /**
+   * Search depth used by MaxN settlement simulation.
+   * JSON path: {@code maxNDepth}.
+   */
+  public static int loadMaxNDepth() {
+    try (InputStream in = openClasspath(HEURISTICS_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      int configured = root.path("maxNDepth").asInt(DEFAULT_MAX_N_DEPTH);
+      return configured > 0 ? configured : DEFAULT_MAX_N_DEPTH;
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

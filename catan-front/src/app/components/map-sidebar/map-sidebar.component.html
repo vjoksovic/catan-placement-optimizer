@@ -6,43 +6,33 @@
     </div>
     <p class="sidebar__tagline">Scores, resources, heatmap</p>
 
-    <div
-      class="sidebar__actions"
-      [class.sidebar__actions--single]="
-        !(!gameStarted && !hasSettlementsOnMap && mapGenerated) && !(gameStarted && placementRevealInProgress)
-      "
-    >
-      <button
-        type="button"
-        class="sidebar__action-btn sidebar__generate"
-        [disabled]="generateMapDisabled"
-        (click)="openGenerateDialog()"
-      >
-        {{ generateMapLoading ? 'Generating…' : 'Generate map' }}
-      </button>
-      @if (!gameStarted && !hasSettlementsOnMap && mapGenerated) {
+    @if (!gameStarted) {
+      <div class="sidebar__tactics-row">
         <button
           type="button"
-          class="sidebar__action-btn sidebar__start-game"
-          [disabled]="startGameDisabled"
-          (click)="startGame.emit()"
+          class="sidebar__action-btn sidebar__tactics"
+          [disabled]="generateMapLoading"
+          (click)="openTacticsDialog()"
         >
-          Start game
+          <span class="sidebar__action-btn-inner">
+            <span class="sidebar__action-label">Change tactics</span>
+            <svg
+              class="sidebar__action-icon sidebar__action-icon--tactics"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="5" y1="8" x2="19" y2="8" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <line x1="5" y1="16" x2="19" y2="16" />
+            </svg>
+          </span>
         </button>
-      }
-      @if (gameStarted && placementRevealInProgress) {
-        <button
-          type="button"
-          class="sidebar__action-btn sidebar__abort"
-          (click)="abortPlacing.emit()"
-        >
-          Abort
-        </button>
-      }
-      @if (generateMapFailed) {
-        <p class="sidebar__generate-error" role="status">Could not reach server. Check the API is running.</p>
-      }
-    </div>
+      </div>
+    }
 
     @if (generateDialogOpen) {
       <div class="generate-overlay" (click)="closeGenerateDialog()">
@@ -53,49 +43,76 @@
           aria-labelledby="generate-dialog-title"
           (click)="$event.stopPropagation()"
         >
-          <h3 id="generate-dialog-title" class="generate-dialog__title">Tactics (3 seats)</h3>
-          <p class="generate-dialog__hint">Choose how each seat weights production, diversity, and scarcity.</p>
-          <div class="generate-dialog__row">
-            <label class="generate-dialog__label" for="tc-seat-0">White · 1st</label>
-            <select
-              id="tc-seat-0"
-              class="generate-dialog__select"
-              name="tc-seat-0"
-              [ngModel]="seatTactics[0]"
-              (ngModelChange)="onSeatTacticModelChange(0, $event)"
-            >
-              @for (p of tacticOptions; track p) {
-                <option [ngValue]="p">{{ tacticLabels[p] }}</option>
+          <header class="generate-dialog__header">
+            @if (mapGenerated) {
+              <p class="generate-dialog__eyebrow">Tactics</p>
+              <h3 id="generate-dialog-title" class="generate-dialog__title">Change tactics per seat</h3>
+            } @else {
+              <p class="generate-dialog__eyebrow">New board</p>
+              <h3 id="generate-dialog-title" class="generate-dialog__title">Tactics per seat</h3>
+            }
+            <p class="generate-dialog__hint">
+              Choices are saved in this browser. Use
+              @if (mapGenerated) {
+                <strong>Regenerate map</strong>
+              } @else {
+                <strong>Generate map</strong>
               }
-            </select>
-          </div>
-          <div class="generate-dialog__row">
-            <label class="generate-dialog__label" for="tc-seat-1">Blue · 2nd</label>
-            <select
-              id="tc-seat-1"
-              class="generate-dialog__select"
-              name="tc-seat-1"
-              [ngModel]="seatTactics[1]"
-              (ngModelChange)="onSeatTacticModelChange(1, $event)"
-            >
-              @for (p of tacticOptions; track p) {
-                <option [ngValue]="p">{{ tacticLabels[p] }}</option>
-              }
-            </select>
-          </div>
-          <div class="generate-dialog__row">
-            <label class="generate-dialog__label" for="tc-seat-2">Orange · 3rd</label>
-            <select
-              id="tc-seat-2"
-              class="generate-dialog__select"
-              name="tc-seat-2"
-              [ngModel]="seatTactics[2]"
-              (ngModelChange)="onSeatTacticModelChange(2, $event)"
-            >
-              @for (p of tacticOptions; track p) {
-                <option [ngValue]="p">{{ tacticLabels[p] }}</option>
-              }
-            </select>
+              in the footer to build or replace the board.
+            </p>
+          </header>
+          <div class="generate-dialog__fields">
+            <div class="generate-dialog__row">
+              <label class="generate-dialog__label" for="tc-seat-0">
+                <span class="generate-dialog__swatch generate-dialog__swatch--white" aria-hidden="true"></span>
+                White · 1st
+              </label>
+              <select
+                id="tc-seat-0"
+                class="generate-dialog__select"
+                name="tc-seat-0"
+                [ngModel]="seatTactics[0]"
+                (ngModelChange)="onSeatTacticModelChange(0, $event)"
+              >
+                @for (p of tacticOptions; track p) {
+                  <option [ngValue]="p">{{ tacticLabels[p] }}</option>
+                }
+              </select>
+            </div>
+            <div class="generate-dialog__row">
+              <label class="generate-dialog__label" for="tc-seat-1">
+                <span class="generate-dialog__swatch generate-dialog__swatch--blue" aria-hidden="true"></span>
+                Blue · 2nd
+              </label>
+              <select
+                id="tc-seat-1"
+                class="generate-dialog__select"
+                name="tc-seat-1"
+                [ngModel]="seatTactics[1]"
+                (ngModelChange)="onSeatTacticModelChange(1, $event)"
+              >
+                @for (p of tacticOptions; track p) {
+                  <option [ngValue]="p">{{ tacticLabels[p] }}</option>
+                }
+              </select>
+            </div>
+            <div class="generate-dialog__row">
+              <label class="generate-dialog__label" for="tc-seat-2">
+                <span class="generate-dialog__swatch generate-dialog__swatch--orange" aria-hidden="true"></span>
+                Orange · 3rd
+              </label>
+              <select
+                id="tc-seat-2"
+                class="generate-dialog__select"
+                name="tc-seat-2"
+                [ngModel]="seatTactics[2]"
+                (ngModelChange)="onSeatTacticModelChange(2, $event)"
+              >
+                @for (p of tacticOptions; track p) {
+                  <option [ngValue]="p">{{ tacticLabels[p] }}</option>
+                }
+              </select>
+            </div>
           </div>
           <div class="generate-dialog__actions">
             <button type="button" class="generate-dialog__btn generate-dialog__btn--ghost" (click)="closeGenerateDialog()">
@@ -105,62 +122,27 @@
               type="button"
               class="generate-dialog__btn generate-dialog__btn--primary"
               [disabled]="generateMapLoading"
-              (click)="confirmGenerate()"
+              (click)="saveTacticsDialog()"
             >
-              Generate
+              <span class="generate-dialog__btn-inner">
+                <span class="generate-dialog__btn-text">Done</span>
+                <svg
+                  class="generate-dialog__btn-icon"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              </span>
             </button>
           </div>
+        </div>
       </div>
-    </div>
-    }
-
-    @if (gameStarted && !gameOver) {
-    <div class="now-playing" aria-label="Current turn">
-      <div class="now-playing__current">
-        <span class="now-playing__kicker">Now</span>
-        <span
-          class="now-playing__piece"
-          [class.now-playing__piece--white]="nowPlayingCaption.swatch === 'white'"
-          [class.now-playing__piece--blue]="nowPlayingCaption.swatch === 'blue'"
-          [class.now-playing__piece--orange]="nowPlayingCaption.swatch === 'orange'"
-          aria-hidden="true"
-        ></span>
-        <span class="now-playing__name">
-          {{ nowPlayingCaption.colorLabel }} · {{ nowPlayingCaption.seat }} player
-        </span>
-      </div>
-      <div class="now-playing__toggle" role="group" aria-label="Choose active player">
-        @for (s of nowPlayingSeats; track s) {
-          <button
-            type="button"
-            class="now-playing__btn"
-            [class.now-playing__btn--active]="nowPlayingSeat === s"
-            [disabled]="nowPlayingSeatLocked"
-            (click)="nowPlayingSeatChange.emit(s)"
-          >
-            {{ s }}
-          </button>
-        }
-      </div>
-    </div>
-    }
-
-    @if (gameOver && winnerCaption) {
-    <div class="now-playing" aria-label="Game over">
-      <div class="now-playing__current">
-        <span class="now-playing__kicker">Game over</span>
-        <span
-          class="now-playing__piece"
-          [class.now-playing__piece--white]="winnerCaption.swatch === 'white'"
-          [class.now-playing__piece--blue]="winnerCaption.swatch === 'blue'"
-          [class.now-playing__piece--orange]="winnerCaption.swatch === 'orange'"
-          aria-hidden="true"
-        ></span>
-        <span class="now-playing__name">
-          Winner is {{ winnerCaption.seat }} player
-        </span>
-      </div>
-    </div>
     }
 
   </header>
@@ -181,38 +163,66 @@
     </section>
 
     <section class="panel panel--heatmap">
-      <div class="panel__row">
-        <span class="panel__label">Heuristic heatmap</span>
-        @if (mapGenerated) {
-          <button
-            type="button"
-            class="heatmap-switch"
-            role="switch"
-            [attr.aria-checked]="heatmapOn"
-            (click)="heatmapToggle.emit()"
-          >
-            <span class="heatmap-switch__track">
-              <span class="heatmap-switch__thumb"></span>
-            </span>
-            <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
-          </button>
-        }
+      <div class="heatmap-top">
+        <p class="heatmap-top__eyebrow">Visualization</p>
+        <div class="heatmap-top__row">
+          <h3 class="heatmap-top__title">Heuristic heatmap</h3>
+          @if (mapGenerated) {
+            <button
+              type="button"
+              class="heatmap-switch"
+              role="switch"
+              [attr.aria-checked]="heatmapOn"
+              (click)="heatmapToggle.emit()"
+            >
+              <span class="heatmap-switch__track">
+                <span class="heatmap-switch__thumb"></span>
+              </span>
+              <span class="heatmap-switch__text">{{ heatmapOn ? 'On' : 'Off' }}</span>
+            </button>
+          }
+        </div>
+        <p class="heatmap-top__hint">
+          Vertex dots use grades 1 (lowest) through 5 (highest) from the combined heuristic.
+        </p>
       </div>
-      <p class="panel__hint">Spot grades 1 (worst) to 5 (best) by heuristic</p>
-      <div class="heatmap-legend" [class.heatmap-legend--muted]="!heatmapOn" aria-hidden="true">
-        <span class="heatmap-legend__cap">1</span>
-        <span class="heatmap-legend__bar"></span>
-        <span class="heatmap-legend__cap">5</span>
-      </div>
-      <div class="heatmap-explain" aria-label="Heatmap grades 1 to 5">
-        <div class="heatmap-tier-list">
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--1"></i><span class="heatmap-tier__grade">1</span> Worst</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--2"></i><span class="heatmap-tier__grade">2</span> Low</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--3"></i><span class="heatmap-tier__grade">3</span> Medium</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--4"></i><span class="heatmap-tier__grade">4</span> High</span>
-          <span class="heatmap-tier"><i class="heatmap-tier__swatch heatmap-tier__swatch--5"></i><span class="heatmap-tier__grade">5</span> Best</span>
+
+      <div class="heatmap-scale" [class.heatmap-scale--muted]="!heatmapOn" aria-hidden="true">
+        <span class="heatmap-scale__label">Scale</span>
+        <div class="heatmap-scale__row">
+          <span class="heatmap-scale__cap">1</span>
+          <span class="heatmap-scale__bar"></span>
+          <span class="heatmap-scale__cap">5</span>
         </div>
       </div>
+
+      @if (mapGenerated && heatmapOn) {
+        <div class="heatmap-key" aria-label="Heatmap grades 1 to 5">
+          <p class="heatmap-key__title">Grade key</p>
+          <div class="heatmap-tier-list">
+            <span class="heatmap-tier">
+              <span class="heatmap-tier__swatch heatmap-tier__swatch--1" aria-hidden="true"></span>
+              <span class="heatmap-tier__text"><span class="heatmap-tier__grade">1</span> Worst</span>
+            </span>
+            <span class="heatmap-tier">
+              <span class="heatmap-tier__swatch heatmap-tier__swatch--2" aria-hidden="true"></span>
+              <span class="heatmap-tier__text"><span class="heatmap-tier__grade">2</span> Low</span>
+            </span>
+            <span class="heatmap-tier">
+              <span class="heatmap-tier__swatch heatmap-tier__swatch--3" aria-hidden="true"></span>
+              <span class="heatmap-tier__text"><span class="heatmap-tier__grade">3</span> Medium</span>
+            </span>
+            <span class="heatmap-tier">
+              <span class="heatmap-tier__swatch heatmap-tier__swatch--4" aria-hidden="true"></span>
+              <span class="heatmap-tier__text"><span class="heatmap-tier__grade">4</span> High</span>
+            </span>
+            <span class="heatmap-tier">
+              <span class="heatmap-tier__swatch heatmap-tier__swatch--5" aria-hidden="true"></span>
+              <span class="heatmap-tier__text"><span class="heatmap-tier__grade">5</span> Best</span>
+            </span>
+          </div>
+        </div>
+      }
     </section>
 
     <section class="panel panel--table" aria-label="Heuristic breakdown">
@@ -248,35 +258,187 @@
     </section>
 
     <section class="panel panel--resources" aria-label="Resources on this map">
-      <h3 class="panel__table-title">On this map</h3>
-      <ul class="resource-list">
-        @if (mapGenerated) {
-          @for (r of resourceOnMap; track r.resource) {
-            <li class="resource-list__item">
-              <span
-                class="resource-list__swatch"
-                [style.background-color]="r.tileColor"
-                aria-hidden="true"
-              ></span>
-              <div class="resource-list__body">
-                <span class="resource-list__name">{{ r.label }}</span>
-                <span class="resource-list__meta">
-                  {{ r.hexes }} {{ r.hexes === 1 ? 'field' : 'fields' }}
-                  <span class="resource-list__dot" aria-hidden="true">·</span>
-                  {{ r.production }} production
-                </span>
-              </div>
-            </li>
-          }
-        } @else {
-          <li class="resource-list__item">
-            <div class="resource-list__body">
-              <span class="resource-list__name">No data</span>
-            </div>
-          </li>
-        }
-      </ul>
+      <div class="resources-top">
+        <p class="resources-top__eyebrow">Board</p>
+        <h3 class="resources-top__title">On this map</h3>
+        <p class="resources-top__hint">
+          Hex count and pip-weighted production for each resource on the generated board.
+        </p>
+      </div>
+      @if (mapGenerated) {
+        <div class="table-wrap">
+          <table class="resource-map-table">
+            <thead>
+              <tr>
+                <th scope="col">Resource</th>
+                <th scope="col" class="resource-map-table__num">Fields</th>
+                <th scope="col" class="resource-map-table__num">Production</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of resourceOnMap; track r.resource) {
+                <tr>
+                  <th scope="row" class="resource-map-table__resource">
+                    <span class="resource-map-table__resource-inner">
+                      <span
+                        class="resource-map-table__swatch"
+                        [style.background-color]="r.tileColor"
+                        aria-hidden="true"
+                      ></span>
+                      <span class="resource-map-table__name">{{ r.label }}</span>
+                    </span>
+                  </th>
+                  <td class="resource-map-table__num">{{ r.hexes }}</td>
+                  <td class="resource-map-table__num">{{ r.production }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="map-resources-empty">Generate a map to see fields and production per resource.</p>
+      }
     </section>
   </div>
+
+  @if ((gameStarted && !gameOver) || (gameOver && winnerCaption)) {
+    <div class="sidebar__prefooter" aria-label="Game status">
+      @if (gameStarted && !gameOver) {
+        <section class="now-playing" aria-live="polite">
+          <div class="now-playing__kicker">Now playing</div>
+          <div class="now-playing__current">
+            <span
+              class="now-playing__piece"
+              [class.now-playing__piece--white]="nowPlayingCaption.swatch === 'white'"
+              [class.now-playing__piece--blue]="nowPlayingCaption.swatch === 'blue'"
+              [class.now-playing__piece--orange]="nowPlayingCaption.swatch === 'orange'"
+              aria-hidden="true"
+            ></span>
+            <span class="now-playing__name">{{ nowPlayingCaption.seat }} player is playing…</span>
+          </div>
+          <div class="now-playing__toggle">
+            @for (seat of nowPlayingSeats; track seat) {
+              <button
+                type="button"
+                class="now-playing__btn"
+                [class.now-playing__btn--active]="nowPlayingSeat === seat"
+                [disabled]="nowPlayingSeatLocked"
+                (click)="nowPlayingSeatChange.emit(seat)"
+              >
+                {{ seat }}
+              </button>
+            }
+          </div>
+        </section>
+      }
+      @if (gameOver && winnerCaption) {
+        <section class="winner-card" aria-live="polite">
+          <div class="winner-card__kicker">Winner</div>
+          <div class="winner-card__current">
+            <span
+              class="winner-card__piece"
+              [class.winner-card__piece--white]="winnerCaption.swatch === 'white'"
+              [class.winner-card__piece--blue]="winnerCaption.swatch === 'blue'"
+              [class.winner-card__piece--orange]="winnerCaption.swatch === 'orange'"
+              aria-hidden="true"
+            ></span>
+            <span class="winner-card__name">{{ winnerCaption.seat }} player is winner!</span>
+          </div>
+        </section>
+      }
+    </div>
+  }
+
+  <footer class="sidebar__footer" aria-label="Map actions">
+    <div
+      class="sidebar__actions"
+      [class.sidebar__actions--single]="!(!gameStarted && !hasSettlementsOnMap && mapGenerated)"
+    >
+      @if (!gameStarted || gameOver) {
+        <button
+          type="button"
+          class="sidebar__action-btn sidebar__generate"
+          [class.sidebar__action-btn--busy]="generateMapLoading"
+          [disabled]="generateMapDisabled"
+          (click)="runGenerateMap()"
+        >
+          <span class="sidebar__action-btn-inner">
+            <span class="sidebar__action-label">{{ primaryMapActionLabel() }}</span>
+            @if (mapGenerated) {
+              <svg
+                class="sidebar__action-icon sidebar__action-icon--regenerate"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M3 16v5h5" />
+              </svg>
+            } @else {
+              <svg
+                class="sidebar__action-icon sidebar__action-icon--generate"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            }
+          </span>
+        </button>
+      }
+      @if (!gameStarted && !hasSettlementsOnMap && mapGenerated) {
+        <button
+          type="button"
+          class="sidebar__action-btn sidebar__start-game"
+          [disabled]="startGameDisabled"
+          (click)="startGame.emit()"
+        >
+          <span class="sidebar__action-btn-inner">
+            <span class="sidebar__action-label">Start game</span>
+            <svg class="sidebar__action-icon sidebar__action-icon--start" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.75" />
+              <path fill="currentColor" stroke="none" d="M10 8.5 17 12 10 15.5z" />
+            </svg>
+          </span>
+        </button>
+      }
+      @if (gameStarted && placementRevealInProgress) {
+        <button
+          type="button"
+          class="sidebar__action-btn sidebar__abort"
+          (click)="abortPlacing.emit()"
+        >
+          <span class="sidebar__action-btn-inner">
+            <span class="sidebar__action-label">Abort</span>
+            <svg
+              class="sidebar__action-icon sidebar__action-icon--abort"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="m15 9-6 6M9 9l6 6" />
+            </svg>
+          </span>
+        </button>
+      }
+      @if (generateMapFailed) {
+        <p class="sidebar__generate-error" role="status">Could not reach server. Check the API is running.</p>
+      }
+    </div>
+  </footer>
 </aside>
 

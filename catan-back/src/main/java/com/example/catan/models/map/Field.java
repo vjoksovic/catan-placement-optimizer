@@ -8,6 +8,7 @@ import lombok.Setter;
 
 @Setter @Getter
 public class Field {
+  
   private int id;
   private int fieldNumber;
   private Resource resource;
