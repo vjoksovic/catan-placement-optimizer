@@ -30,7 +30,7 @@ public class GameService {
   }
 
   private void placeSettlement(Map map, Player player) {
-    Vertex settlement = decisionService.setSettlement(map, player);
+    Vertex settlement = decisionService.placeSettlement(map, player);
     decisionService.placeRoad(map, settlement, player);
     updateScore(map, player);
   }

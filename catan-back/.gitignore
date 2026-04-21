@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Playground output ###
+src/main/resources/playground-results/*
+!src/main/resources/playground-results/.gitkeep

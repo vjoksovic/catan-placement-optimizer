@@ -13,8 +13,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
+import com.example.catan.interfaces.MapInterface;
+
 @Service
-public class GeneratorService {
+public class GeneratorService implements MapInterface {
 
   private Map currentMap;
 
@@ -30,11 +32,11 @@ public class GeneratorService {
   }
 
   public synchronized Map generateNew(List<Tactic> tactics) {
-    currentMap = generateInternal(tactics);
+    currentMap = generateMap(tactics);
     return currentMap;
   }
 
-  private Map generateInternal(List<Tactic> tactics) {
+  public Map generateMap(List<Tactic> tactics) {
     final int maxAttempts = 200;
     for (int attempt = 1; attempt <= maxAttempts; attempt++) {
       Map map = new Map(tactics);

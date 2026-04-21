@@ -6,6 +6,7 @@ import java.util.Set;
 
 import org.springframework.stereotype.Service;
 
+import com.example.catan.interfaces.HeuristicInterface;
 import com.example.catan.models.enums.Resource;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
@@ -14,7 +15,7 @@ import com.example.catan.utils.ConfigLoader;
 import com.example.catan.utils.MathUtil;
 
 @Service
-public class FieldService {
+public class FieldService implements HeuristicInterface {
 
   private final java.util.Map<String, Double> scarcityMultipliers;
   private final java.util.Map<String, Double> numberMultipliers;

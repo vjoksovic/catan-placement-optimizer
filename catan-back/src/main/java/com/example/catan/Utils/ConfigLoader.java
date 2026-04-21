@@ -88,6 +88,8 @@ public final class ConfigLoader {
   private static final Map<String, Double> DEFAULT_HEURISTIC_SCALING_TARGET_SHARES;
   private static final int DEFAULT_N_MAX_CANDIDATES = 5;
   private static final int DEFAULT_MAX_N_DEPTH = 4;
+  private static final int DEFAULT_GAMES_PER_TACTIC = 100;
+  private static final int DEFAULT_TOTAL_GAMES = 300;
 
   static {
     Map<String, Double> d = new HashMap<>();
@@ -271,6 +273,26 @@ public final class ConfigLoader {
       JsonNode root = MAPPER.readTree(in);
       int configured = root.path("maxNDepth").asInt(DEFAULT_MAX_N_DEPTH);
       return configured > 0 ? configured : DEFAULT_MAX_N_DEPTH;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public static int loadGamesPerTactic() {
+    try (InputStream in = openClasspath(DEFAULT_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      int configured = root.path("gamesPerTactic").asInt(DEFAULT_GAMES_PER_TACTIC);
+      return configured > 0 ? configured : DEFAULT_GAMES_PER_TACTIC;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public static int loadTotalGames() {
+    try (InputStream in = openClasspath(DEFAULT_CLASSPATH)) {
+      JsonNode root = MAPPER.readTree(in);
+      int configured = root.path("totalGames").asInt(DEFAULT_TOTAL_GAMES);
+      return configured > 0 ? configured : DEFAULT_TOTAL_GAMES;
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

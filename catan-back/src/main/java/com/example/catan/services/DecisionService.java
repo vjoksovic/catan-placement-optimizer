@@ -5,13 +5,14 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import com.example.catan.interfaces.GameInterface;
 import com.example.catan.models.map.Map;
 import com.example.catan.models.map.Player;
 import com.example.catan.models.map.Vertex;
 import com.example.catan.utils.ConfigLoader;
 
 @Service
-public class DecisionService {
+public class DecisionService implements GameInterface {
 
   private final CopyService copyService;
   private final VertexService vertexService;
@@ -25,7 +26,7 @@ public class DecisionService {
     this.maxNDepth = ConfigLoader.loadMaxNDepth();
   }
 
-  public Vertex setSettlement(Map map, Player player) {
+  public Vertex placeSettlement(Map map, Player player) {
     Vertex settlement = findSettlement(map, player);
     if (settlement != null) {
       player.getSettlements().add(settlement.getId());
@@ -105,7 +106,8 @@ public class DecisionService {
 
   public void placeRoad(Map map, Vertex vertex, Player player) {
     Vertex bestNeighbour = findRoute(map, vertex, player);
-    vertex.getRoadFlags().put(bestNeighbour.getId(), true);
+    if (bestNeighbour != null) 
+      vertex.getRoadFlags().put(bestNeighbour.getId(), true);
   }
 
   private int getNextPlayer(int currentPlayer, int playerCount) {
