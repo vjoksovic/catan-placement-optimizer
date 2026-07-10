@@ -29,16 +29,24 @@ public class PlaygroundService implements ApplicationRunner {
       "src", "main", "resources", "playground-results", "headless-results.csv");
   private static final Logger LOGGER = LoggerFactory.getLogger(PlaygroundService.class);
   private static final AtomicBoolean HEADLESS_RUN_GUARD = new AtomicBoolean(false);
+  private static final int GAMES_PER_ASSIGNMENT = 50;
   private static final List<Tactic> PLAYGROUND_TACTICS = List.of(
       Tactic.BALANCED,
       Tactic.PRODUCTION_FOCUSED,
       Tactic.SCARCITY_FOCUSED
   );
+  private static final List<List<Tactic>> TACTIC_ASSIGNMENTS = List.of(
+      List.of(Tactic.BALANCED, Tactic.PRODUCTION_FOCUSED, Tactic.SCARCITY_FOCUSED),
+      List.of(Tactic.BALANCED, Tactic.SCARCITY_FOCUSED, Tactic.PRODUCTION_FOCUSED),
+      List.of(Tactic.PRODUCTION_FOCUSED, Tactic.BALANCED, Tactic.SCARCITY_FOCUSED),
+      List.of(Tactic.PRODUCTION_FOCUSED, Tactic.SCARCITY_FOCUSED, Tactic.BALANCED),
+      List.of(Tactic.SCARCITY_FOCUSED, Tactic.BALANCED, Tactic.PRODUCTION_FOCUSED),
+      List.of(Tactic.SCARCITY_FOCUSED, Tactic.PRODUCTION_FOCUSED, Tactic.BALANCED)
+  );
 
   private final GeneratorService generatorService;
   private final HeuristicService heuristicService;
   private final GameService gameService;
-  private final int gamesPerTactic;
   private final int totalGames;
 
   @Value("${playground.headless.enabled:false}")
@@ -52,13 +60,12 @@ public class PlaygroundService implements ApplicationRunner {
     this.generatorService = generatorService;
     this.heuristicService = heuristicService;
     this.gameService = gameService;
-    this.gamesPerTactic = ConfigLoader.loadGamesPerTactic();
     int configuredTotal = ConfigLoader.loadTotalGames();
-    int expectedTotal = this.gamesPerTactic * PLAYGROUND_TACTICS.size();
+    int expectedTotal = GAMES_PER_ASSIGNMENT * TACTIC_ASSIGNMENTS.size();
     this.totalGames = configuredTotal > 0 ? configuredTotal : expectedTotal;
     if (this.totalGames != expectedTotal) {
       LOGGER.warn(
-          "Configured totalGames ({}) does not match gamesPerTactic * tacticCount ({}).",
+          "Configured totalGames ({}) does not match gamesPerAssignment * assignmentCount ({}).",
           this.totalGames,
           expectedTotal
       );
@@ -85,8 +92,8 @@ public class PlaygroundService implements ApplicationRunner {
 
       LOGGER.info("Headless playground started: {} games queued.", totalGames);
       int gameNumber = 1;
-      for (Tactic tactic : PLAYGROUND_TACTICS) {
-        gameNumber = runBatch(csvContent, tactic, gameNumber);
+      for (List<Tactic> assignment : TACTIC_ASSIGNMENTS) {
+        gameNumber = runAssignmentBlock(csvContent, assignment, gameNumber);
       }
 
       Files.writeString(
@@ -102,20 +109,30 @@ public class PlaygroundService implements ApplicationRunner {
     }
   }
 
-  private int runBatch(StringBuilder csvContent, Tactic tactic, int gameStartNumber) {
+  private int runAssignmentBlock(
+      StringBuilder csvContent,
+      List<Tactic> tactics,
+      int gameStartNumber
+  ) {
     int currentGame = gameStartNumber;
-    for (int i = 0; i < gamesPerTactic; i++) {
-      GameSnapshot result = playSingleGame(tactic);
-      csvContent.append(buildCsvRow(currentGame, tactic, result));
+    for (int i = 0; i < GAMES_PER_ASSIGNMENT; i++) {
+      GameSnapshot result = playSingleGame(tactics);
+      csvContent.append(buildCsvRow(currentGame, tactics, result));
       csvContent.append(System.lineSeparator());
-      LOGGER.info("Game {}/{} completed [{}].", currentGame, totalGames, tactic.name());
+      LOGGER.info(
+          "Game {}/{} completed [P1={}, P2={}, P3={}].",
+          currentGame,
+          totalGames,
+          tactics.get(0).name(),
+          tactics.get(1).name(),
+          tactics.get(2).name()
+      );
       currentGame++;
     }
     return currentGame;
   }
 
-  private GameSnapshot playSingleGame(Tactic tactic) {
-    List<Tactic> tactics = List.of(tactic, tactic, tactic);
+  private GameSnapshot playSingleGame(List<Tactic> tactics) {
     Map map = generatorService.generateNew(tactics);
     heuristicService.calculateHeuristic(map);
 
@@ -128,7 +145,7 @@ public class PlaygroundService implements ApplicationRunner {
   }
 
   private String buildCsvHeader() {
-    StringBuilder header = new StringBuilder("game,tactic");
+    StringBuilder header = new StringBuilder("game,p1_tactic,p2_tactic,p3_tactic");
     for (int i = 0; i < PLAYGROUND_TACTICS.size(); i++) {
       int playerIndex = i + 1;
       header.append(String.format(
@@ -147,8 +164,15 @@ public class PlaygroundService implements ApplicationRunner {
     return header.toString();
   }
 
-  private String buildCsvRow(int gameNumber, Tactic tactic, GameSnapshot snapshot) {
-    StringBuilder row = new StringBuilder(String.format(Locale.US, "%d,%s", gameNumber, tactic.name()));
+  private String buildCsvRow(int gameNumber, List<Tactic> tactics, GameSnapshot snapshot) {
+    StringBuilder row = new StringBuilder(String.format(
+        Locale.US,
+        "%d,%s,%s,%s",
+        gameNumber,
+        tactics.get(0).name(),
+        tactics.get(1).name(),
+        tactics.get(2).name()
+    ));
     for (ScoreSnapshot playerScore : snapshot.playerScores()) {
       row.append(String.format(
           Locale.US,

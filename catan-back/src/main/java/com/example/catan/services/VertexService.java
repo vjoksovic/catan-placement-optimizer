@@ -22,26 +22,6 @@ public class VertexService {
     return fields;
   }
 
-  public Vertex getVertexByHeuristic(Map map, double heuristic, Tactic tactic) {
-    for (Vertex vertex : map.getVertices()) {
-      switch (tactic) {
-        case BALANCED:
-          if (vertex.getValue().getBalancedValue() == heuristic) {
-            return vertex;
-          }
-        case PRODUCTION_FOCUSED:
-          if (vertex.getValue().getProductionFocusedValue() == heuristic) {
-            return vertex;
-          }
-        case SCARCITY_FOCUSED:
-          if (vertex.getValue().getScarcityFocusedValue() == heuristic) {
-            return vertex;
-          }
-      }
-    }
-    return null;
-  }
-
   public Vertex getVertex(Map map, int vertexId) {
     return map.getVertices().get(vertexId);
   }

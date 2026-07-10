@@ -124,7 +124,7 @@ public class HeuristicService {
     MathUtil.roundHeuristic(heuristic, scalingContext, player.getSettlements().size());
     if (isSettled)
       player.getScore().setValues(heuristic.getProductionValue(), heuristic.getResourceDiversityValue(), heuristic.getNumberDiversityValue(), heuristic.getScarcityValue());
-    return player.getScore().calculateTotal(heuristic);
+    return player.getScore().calculateTotal(heuristic, player.getTactic());
   }
 
 }

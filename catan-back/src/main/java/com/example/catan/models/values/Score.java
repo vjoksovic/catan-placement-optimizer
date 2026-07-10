@@ -1,5 +1,6 @@
 package com.example.catan.models.values;
 
+import com.example.catan.models.enums.Tactic;
 import com.example.catan.utils.MathUtil;
 
 import lombok.Getter;
@@ -28,7 +29,10 @@ public class Score {
     this.totalScore = MathUtil.round2(this.productionScore + this.diversityScore + this.scarcityScore);
   }
 
-  public double calculateTotal(Heuristic heuristic) {
-    return MathUtil.round2(heuristic.getProductionValue() + (heuristic.getResourceDiversityValue() + heuristic.getNumberDiversityValue()) / 2 + heuristic.getScarcityValue());
+  public double calculateTotal(Heuristic heuristic, Tactic tactic) {
+    return heuristic.getProductionValue() * tactic.getProductionWeight()
+     + heuristic.getResourceDiversityValue() * tactic.getResourceDiversityWeight()
+     + heuristic.getNumberDiversityValue() * tactic.getNumberDiversityWeight()
+     + heuristic.getScarcityValue() * tactic.getScarcityWeight();
   }
 }

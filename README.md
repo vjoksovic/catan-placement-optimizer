@@ -16,7 +16,7 @@ Cilj je razvoj agenta koji primenjuje principe teorije igara i napredne heuristi
 
 | Sloj | Tehnologija |
 |------|-------------|
-| Backend | Java 21, Spring Boot 4 |
+| Backend | Java 17, Spring Boot 4 |
 | Frontend | Angular 19 (standalone komponente, SSR podrška) |
 | Komunikacija | REST API / JSON |
 | Build alati | Maven (`catan-back`), npm / Angular CLI (`catan-front`) |
@@ -185,7 +185,7 @@ Start game → MapDataService.startGame() → petlja turnNumber 0..5
 
 ```
 Spring Boot start → PlaygroundService.run()
-  → za svaku taktiku × 100 partija:
+  → 6 blokova × 50 partija (sve permutacije taktika po sedištu):
       GeneratorService → GameService (6 poteza) → CSV red
 ```
 
@@ -268,11 +268,22 @@ Svaki igrač može imati drugačiju taktiku. U interaktivnom režimu taktike se 
 playground.headless.enabled=true
 ```
 
-Za svaku od tri taktike izvršava se **100 partija** (ukupno **300 simulacija**). U svakoj partiji sva tri igrača koriste istu taktiku. Rezultati se upisuju u CSV:
+Izvršava se **300 simulacija** u **6 blokova** od po **50 partija**. Svaki blok koristi drugačiju permutaciju taktičkih profila po sedištu (B = BALANCED, P = PRODUCTION_FOCUSED, S = SCARCITY_FOCUSED):
+
+| Partije | Igrač 1 | Igrač 2 | Igrač 3 |
+|---------|---------|---------|---------|
+| 1–50 | B | P | S |
+| 51–100 | B | S | P |
+| 101–150 | P | B | S |
+| 151–200 | P | S | B |
+| 201–250 | S | B | P |
+| 251–300 | S | P | B |
+
+Rezultati se upisuju u CSV:
 
 `catan-back/src/main/resources/playground-results/headless-results.csv`
 
-CSV sadrži po igraču metrike produkcije, diversifikacije, retkosti i ukupnog skora, produkciju resursa po tipu na mapi, kao i indeks pobednika.
+CSV sadrži taktiku po igraču (`p1_tactic`, `p2_tactic`, `p3_tactic`), po igraču metrike produkcije, diversifikacije, retkosti i ukupnog skora, produkciju resursa po tipu na mapi, kao i indeks pobednika.
 
 Broj partija po taktici podešava se u `game.json` (`gamesPerTactic`, `totalGames`).
 
