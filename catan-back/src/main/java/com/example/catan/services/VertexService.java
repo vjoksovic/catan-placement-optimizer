@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import com.example.catan.models.enums.Tactic;
 import com.example.catan.models.map.Field;
 import com.example.catan.models.map.Map;
 import com.example.catan.models.map.Player;
